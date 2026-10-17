@@ -1,0 +1,1552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buggy Threads Co. - QA Trainee Lab (single file)</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        brand: { 50: '#f0f9ff', 500: '#0284c7', 600: '#0284c7', 700: '#0369a1' },
+                        qa: { bug: '#ef4444', hint: '#f59e0b', checked: '#10b981' }
+                    }
+                }
+            }
+        };
+    </script>
+    <style>
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+        .qa-overlay-active [data-bug-id] {
+            outline: 2px dashed #ef4444 !important;
+            outline-offset: 2px !important;
+            position: relative;
+        }
+        .qa-overlay-active [data-bug-id]::after {
+            content: '🐞 ' attr(data-bug-id);
+            position: absolute;
+            top: -12px;
+            right: 0;
+            background: #ef4444;
+            color: white;
+            font-size: 10px;
+            font-weight: bold;
+            padding: 1px 5px;
+            border-radius: 4px;
+            z-index: 9999;
+            pointer-events: none;
+        }
+        .buggy-sale-tag { background-color: #fef08a; color: #fef08a; }
+        .buggy-z-dropdown { z-index: 2 !important; }
+        .broken-avatar-frame { overflow: visible !important; }
+    </style>
+<style>
+        .fixed-build .buggy-sale-tag { color: #713f12 !important; }
+        .fixed-build .buggy-z-dropdown { z-index: 50 !important; }
+        .fixed-build [data-bug-id="BUG-VIS-01"] { white-space: normal !important; overflow: hidden !important; font-size: .875rem !important; }
+    </style></head>
+<body class="bg-slate-900 text-slate-100 antialiased min-h-screen flex flex-col font-sans">
+
+    <!-- TOP ANNOUNCEMENT BAR -->
+    <div class="bg-slate-950 text-slate-400 text-xs py-2 px-4 border-b border-slate-800 flex justify-between items-center">
+        <div class="container mx-auto flex justify-between items-center">
+            <span class="flex items-center gap-2">
+                <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>QA Trainee Practice Lab v1.6 • With Warehouse SQL Lab & Evaluator</span>
+            </span>
+            <div class="flex items-center space-x-4">
+                <div class="flex items-center space-x-1" data-bug-id="BUG-LOC-01">
+                    <span class="text-slate-500">Currency:</span>
+                    <select id="currency-select" onchange="handleCurrencyChange(this.value)" class="bg-slate-800 text-slate-200 text-xs rounded px-2 py-0.5 border border-slate-700 focus:outline-none">
+                        <option value="USD">USD ($)</option>
+                        <option value="EUR">EUR (€)</option>
+                        <option value="GBP">GBP (£)</option>
+                    </select>
+                </div>
+                <span class="text-slate-700">|</span>
+                <div id="top-user-info" class="flex items-center space-x-2">
+                    <span id="user-display-name" class="text-slate-300 font-medium">Guest User</span>
+                    <button onclick="openAuthModal()" class="text-indigo-400 hover:text-indigo-300 underline text-xs">Login</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MAIN HEADER -->
+    <header class="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 sticky top-0 z-30">
+        <div class="container mx-auto px-4 py-3 flex items-center justify-between gap-4">
+            <a href="#" onclick="filterByCategory('all'); return false;" class="flex items-center space-x-2">
+                <div class="bg-indigo-600 text-white p-2 rounded-xl font-black text-xl tracking-wider shadow-lg shadow-indigo-500/20">BT</div>
+                <div>
+                    <span class="font-extrabold text-xl text-white tracking-tight block leading-none">BuggyThreads</span>
+                    <span class="text-[10px] text-indigo-400 font-bold uppercase tracking-widest">QA Trainee Project</span>
+                </div>
+            </a>
+
+            <div class="flex-1 max-w-md" data-bug-id="BUG-SEC-01">
+                <div class="relative">
+                    <input type="text" id="search-input" placeholder="Search apparel, shoes, jackets..." 
+                        class="w-full pl-10 pr-20 py-2 bg-slate-800 border border-slate-700 rounded-full text-sm text-white focus:outline-none focus:border-indigo-500">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-2.5 text-slate-400"></i>
+                    <button onclick="performSearch()" class="absolute right-1 top-1 bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1 rounded-full text-xs font-semibold transition">Search</button>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <button onclick="toggleQADrawer()" class="bg-rose-600 hover:bg-rose-500 text-white px-3.5 py-2 rounded-xl font-bold text-xs sm:text-sm flex items-center space-x-2 shadow-lg shadow-rose-900/40 transition">
+                    <i class="fa-solid fa-bug text-lg"></i>
+                    <span class="hidden sm:inline">QA Control Center</span>
+                    <span id="found-bugs-badge" class="bg-white text-rose-700 text-xs px-2 py-0.5 rounded-full font-black">0/26</span>
+                </button>
+
+                <button onclick="toggleCartModal()" class="relative p-2.5 text-slate-300 hover:bg-slate-800 rounded-xl transition">
+                    <i class="fa-solid fa-bag-shopping text-xl"></i>
+                    <span id="cart-counter" class="absolute -top-1 -right-1 bg-indigo-500 text-white text-xs font-extrabold w-5 h-5 rounded-full flex items-center justify-center">0</span>
+                </button>
+
+                <button onclick="openProfileModal()" class="p-2.5 text-slate-300 hover:bg-slate-800 rounded-xl transition">
+                    <i class="fa-regular fa-circle-user text-xl"></i>
+                </button>
+            </div>
+        </div>
+
+        <nav class="bg-slate-950/80 border-t border-slate-800 text-sm">
+            <div class="container mx-auto px-4 flex space-x-8 overflow-x-auto py-2.5 items-center">
+                <a href="#" onclick="filterByCategory('all'); return false;" class="text-indigo-400 font-medium whitespace-nowrap">Home</a>
+                <a href="#" onclick="filterByCategory('all'); return false;" class="text-slate-300 hover:text-white font-medium whitespace-nowrap">Shop All Products</a>
+                <button onclick="filterByCategory('men')" class="nav-btn text-slate-300 hover:text-white font-medium whitespace-nowrap" data-cat="men">Men's Wear</button>
+                <button onclick="filterByCategory('women')" class="nav-btn text-slate-300 hover:text-white font-medium whitespace-nowrap" data-cat="women">Women's Collection</button>
+                <button onclick="filterByCategory('accessories')" class="nav-btn text-slate-300 hover:text-white font-medium whitespace-nowrap" data-cat="accessories">Accessories</button>
+                <button onclick="filterByCategory('electronics')" class="nav-btn text-slate-300 hover:text-white font-medium whitespace-nowrap" data-cat="electronics">Electronics & Gadgets</button>
+                
+                <button onclick="openWarehouseModal()" class="bg-emerald-600/25 hover:bg-emerald-600/40 text-emerald-300 border border-emerald-500/40 px-3 py-1 rounded-xl text-xs font-bold transition flex items-center gap-1.5 whitespace-nowrap">
+                    <i class="fa-solid fa-database"></i>
+                    <span>Warehouse (SQL Lab - 40 Items)</span>
+                </button>
+
+                <button onclick="filterByCategory('all')" class="text-slate-300 hover:text-white font-medium whitespace-nowrap flex items-center gap-1" data-bug-id="BUG-LOC-02">
+                    <span>Добавить в корзину (Sale)</span>
+                </button>
+                
+                <a href="#broken" onclick="triggerBrokenCategory(event)" data-bug-id="BUG-CON-01" class="text-rose-400 hover:text-rose-300 font-bold whitespace-nowrap">🔥 Clearance</a>
+            </div>
+        </nav>
+    </header>
+
+    <main class="flex-grow container mx-auto px-4 py-6">
+        <div class="relative bg-gradient-to-r from-slate-950 via-indigo-950 to-slate-950 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl mb-8 p-6 md:p-10 z-10">
+            <div class="max-w-2xl">
+                <span class="bg-indigo-500/20 text-indigo-300 text-xs font-semibold px-3 py-1 rounded-full border border-indigo-500/30">QA Trainee Portfolio & Sandbox</span>
+                <h1 class="text-3xl md:text-5xl font-extrabold mt-3 tracking-tight leading-tight text-white">Interactive Bug Sandbox & Report Evaluator</h1>
+                <p class="text-slate-400 mt-2 text-sm md:text-base">Practice exploratory testing, bug reporting, and SQL warehouse queries with 40 inventory items!</p>
+                <div class="mt-6 flex flex-wrap gap-3">
+                    <button onclick="toggleQAOverlay()" class="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-4 py-2.5 rounded-xl text-sm transition flex items-center gap-2 shadow-lg">
+                        <i class="fa-solid fa-eye"></i>
+                        <span>Toggle Bug Hint Overlay</span>
+                    </button>
+                    <button onclick="openWarehouseModal()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2.5 rounded-xl text-sm transition flex items-center gap-2 shadow-lg">
+                        <i class="fa-solid fa-database"></i>
+                        <span>Open Warehouse SQL Lab</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-slate-800/60 p-4 rounded-2xl border border-slate-700/60 shadow-lg mb-6 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center space-x-3 w-full md:w-auto">
+                <label class="text-xs font-bold text-slate-400 uppercase tracking-wider">Category:</label>
+                <div class="relative flex-1 md:w-48 buggy-z-dropdown" data-bug-id="BUG-VIS-02">
+                    <select id="category-select" onchange="filterByCategory(this.value)" class="w-full bg-slate-900 border border-slate-700 text-slate-200 text-sm rounded-xl p-2.5 focus:border-indigo-500">
+                        <option value="all">All Items</option>
+                        <option value="men">Men's Wear</option>
+                        <option value="women">Women's Collection</option>
+                        <option value="accessories">Accessories</option>
+                        <option value="electronics">Electronics & Gadgets</option>
+                    </select>
+                </div>
+            </div>
+            <div class="flex items-center space-x-3 w-full md:w-auto" data-bug-id="BUG-FUN-04">
+                <label class="text-xs font-bold text-slate-400 uppercase tracking-wider whitespace-nowrap">Max Price:</label>
+                <input type="range" id="price-range" min="10" max="300" value="300" oninput="updatePriceFilter(this.value)" class="w-full md:w-36 accent-indigo-500">
+                <span id="price-range-val" class="text-xs font-extrabold text-indigo-400 w-12">$300</span>
+            </div>
+            <div class="flex items-center space-x-3 w-full md:w-auto" data-bug-id="BUG-FUN-05">
+                <label class="text-xs font-bold text-slate-400 uppercase tracking-wider">Sort By:</label>
+                <select id="sort-select" onchange="handleSortChange(this.value)" class="bg-slate-900 border border-slate-700 text-slate-200 text-sm rounded-xl p-2.5 focus:border-indigo-500">
+                    <option value="default">Featured</option>
+                    <option value="low-high">Price: Low to High</option>
+                    <option value="high-low">Price: High to Low</option>
+                    <option value="name">Name: A to Z</option>
+                </select>
+            </div>
+        </div>
+
+        <div id="product-grid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"></div>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="bg-slate-950 text-slate-400 py-10 border-t border-slate-800 mt-12 text-sm">
+        <div class="container mx-auto px-4 grid grid-cols-1 md:grid-cols-4 gap-8">
+            <div>
+                <h3 class="text-white font-bold text-lg mb-3">BuggyThreads Co.</h3>
+                <p class="text-xs text-slate-500 leading-relaxed">A QA Trainee practice sandbox developed with AI assistance to demonstrate testing and bug report analysis skills.</p>
+            </div>
+            <div>
+                <h4 class="text-slate-200 font-semibold mb-2">Navigation & Links</h4>
+                <ul class="space-y-1 text-xs">
+                    <li><a href="#" class="hover:text-white">Home</a></li>
+                    <li><a href="#" class="hover:text-white">Shop All Products</a></li>
+                    <li><a href="#broken" onclick="triggerConsoleErrorLink(event)" data-bug-id="BUG-CON-02" class="hover:text-rose-400">Order Tracking</a></li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="text-slate-200 font-semibold mb-2">QA Utility Tools</h4>
+                <ul class="space-y-1 text-xs">
+                    <li><button onclick="resetDatabase()" class="text-amber-400 hover:underline">🔄 Reset Database & Local Storage</button></li>
+                    <li><button onclick="toggleQADrawer()" class="text-rose-400 hover:underline">🐞 Open QA Control Drawer</button></li>
+                    <li><button onclick="exportBugReports()" class="text-indigo-400 hover:underline">📥 Export Evaluated Bug Reports</button></li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="text-slate-200 font-semibold mb-2">Newsletter Submission</h4>
+                <div class="flex flex-col space-y-2" data-bug-id="BUG-VAL-01">
+                    <input type="text" id="newsletter-email" placeholder="Enter test email..." class="bg-slate-900 border border-slate-700 text-white rounded-lg p-2 text-xs">
+                    <button onclick="handleNewsletterSubmit()" class="bg-indigo-600 hover:bg-indigo-500 text-white py-1.5 rounded-lg text-xs font-bold transition">Subscribe</button>
+                    <span id="newsletter-msg" class="text-[11px]"></span>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- WAREHOUSE SQL LAB MODAL -->
+    <div id="warehouse-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-emerald-500/40 rounded-2xl max-w-4xl w-full p-6 shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="flex items-center justify-between border-b border-slate-800 pb-3 mb-4">
+                <div class="flex items-center space-x-2">
+                    <div class="w-8 h-8 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center text-sm"><i class="fa-solid fa-database"></i></div>
+                    <div>
+                        <h3 class="text-base font-extrabold text-white">Warehouse Database & SQL Playground (40 Items)</h3>
+                        <p class="text-[11px] text-slate-400">Practice SQL queries against the inventory table (`products`).</p>
+                    </div>
+                </div>
+                <button onclick="closeWarehouseModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4 text-xs">
+                <div class="bg-slate-950 p-3 rounded-xl border border-slate-800 space-y-2">
+                    <h4 class="font-bold text-emerald-400">📋 Table Schema: products</h4>
+                    <ul class="space-y-1 text-slate-300 font-mono text-[11px]">
+                        <li>• id (VARCHAR)</li>
+                        <li>• name (VARCHAR)</li>
+                        <li>• category (VARCHAR)</li>
+                        <li>• price (DECIMAL)</li>
+                        <li>• stock (INT)</li>
+                    </ul>
+                    <div class="pt-2 border-t border-slate-800">
+                        <p class="font-bold text-slate-400 mb-1">Quick SQL Examples:</p>
+                        <div class="space-y-1">
+                            <button onclick="setSQLQuery('SELECT * FROM products')" class="text-left w-full text-indigo-400 hover:underline">SELECT * FROM products</button>
+                            <button onclick="setSQLQuery('SELECT name, price FROM products WHERE price > 100')" class="text-left w-full text-indigo-400 hover:underline">SELECT name, price FROM products WHERE price > 100</button>
+                            <button onclick="setSQLQuery('SELECT * FROM products WHERE stock = 0')" class="text-left w-full text-indigo-400 hover:underline">SELECT * FROM products WHERE stock = 0</button>
+                            <button onclick="setSQLQuery('SELECT * FROM products ORDER BY price DESC')" class="text-left w-full text-indigo-400 hover:underline">SELECT * FROM products ORDER BY price DESC</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="md:col-span-2 flex flex-col space-y-3">
+                    <label class="font-bold text-slate-300">Enter SQL Query:</label>
+                    <textarea id="sql-query-input" rows="3" class="w-full bg-slate-950 border border-slate-700 rounded-xl p-3 text-white font-mono text-xs focus:border-emerald-500 focus:outline-none" placeholder="SELECT * FROM products"></textarea>
+                    <button onclick="executeSQLQuery()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-lg flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-play"></i> Run SQL Query
+                    </button>
+                </div>
+            </div>
+            <div class="flex-1 overflow-y-auto bg-slate-950 rounded-xl border border-slate-800 p-3">
+                <h4 class="font-bold text-xs text-slate-400 mb-2">Query Results:</h4>
+                <div id="sql-results-container" class="overflow-x-auto"><p class="text-slate-500 text-xs italic">Run a query to view results here.</p></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PRODUCT QUICK VIEW MODAL -->
+    <div id="product-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full overflow-hidden shadow-2xl flex flex-col md:flex-row relative">
+            <button onclick="closeProductModal()" class="absolute top-3 right-3 text-slate-400 hover:text-white bg-slate-800 rounded-full w-8 h-8 flex items-center justify-center z-10"><i class="fa-solid fa-xmark"></i></button>
+            <div class="md:w-1/2 bg-slate-950 flex items-center justify-center p-6"><img id="modal-img" src="" alt="Product" class="max-h-64 object-contain rounded-lg"></div>
+            <div class="md:w-1/2 p-6 flex flex-col justify-between">
+                <div>
+                    <span id="modal-category" class="text-xs font-bold uppercase tracking-wider text-indigo-400">Category</span>
+                    <h2 id="modal-title" class="text-xl font-extrabold text-white mt-1">Product Title</h2>
+                    <p id="modal-price" class="text-2xl font-black text-emerald-400 mt-2">$0.00</p>
+                    <p id="modal-stock" class="text-xs font-semibold mt-1">In Stock</p>
+                    <p id="modal-desc" class="text-xs text-slate-400 mt-3 leading-relaxed">Product description text...</p>
+                    <div class="mt-4" data-bug-id="BUG-FUN-03">
+                        <label class="text-xs font-bold text-slate-300 block mb-1">Select Size:</label>
+                        <div class="flex space-x-2" id="modal-sizes"></div>
+                    </div>
+                    <div class="mt-4" data-bug-id="BUG-FUN-01">
+                        <label class="text-xs font-bold text-slate-300 block mb-1">Quantity:</label>
+                        <div class="flex items-center space-x-2">
+                            <button onclick="adjustModalQty(-1)" class="w-8 h-8 bg-slate-800 rounded-lg font-bold text-slate-300">-</button>
+                            <input type="number" id="modal-qty" value="1" step="0.5" class="w-20 bg-slate-950 border border-slate-700 text-white rounded-lg text-center py-1 text-sm font-semibold">
+                            <button onclick="adjustModalQty(1)" class="w-8 h-8 bg-slate-800 rounded-lg font-bold text-slate-300">+</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-6"><button id="modal-add-btn" onclick="executeAddToCartFromModal()" data-bug-id="BUG-FUN-06" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl text-sm transition">Add To Cart</button></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CART DRAWER -->
+    <div id="cart-drawer" class="fixed inset-0 z-50 overflow-hidden hidden">
+        <div class="absolute inset-0 bg-slate-950/70 backdrop-blur-sm" onclick="toggleCartModal()"></div>
+        <div class="absolute inset-y-0 right-0 max-w-full flex pl-10">
+            <div class="w-screen max-w-md bg-slate-900 border-l border-slate-800 shadow-2xl flex flex-col">
+                <div class="p-4 bg-slate-950 border-b border-slate-800 flex justify-between items-center">
+                    <h2 class="font-bold text-lg text-white flex items-center space-x-2"><i class="fa-solid fa-bag-shopping text-indigo-400"></i><span>Shopping Bag</span></h2>
+                    <button onclick="toggleCartModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+                </div>
+                <div id="cart-items-list" class="flex-1 overflow-y-auto p-4 space-y-4 divide-y divide-slate-800"></div>
+                <div class="p-4 border-t border-slate-800 bg-slate-950/50 space-y-3">
+                    <div class="flex space-x-2" data-bug-id="BUG-FUN-02">
+                        <input type="text" id="coupon-code" placeholder="Try coupon FREE100" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-white uppercase font-mono">
+                        <button onclick="applyCoupon()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-1.5 rounded-lg text-xs font-bold transition">Apply</button>
+                    </div>
+                    <div id="coupon-msg" class="text-[11px] font-semibold text-emerald-400"></div>
+                    <div class="space-y-1.5 text-xs text-slate-400">
+                        <div class="flex justify-between"><span>Subtotal:</span><span id="cart-subtotal" class="font-bold text-slate-200">$0.00</span></div>
+                        <div class="flex justify-between text-emerald-400"><span>Discount:</span><span id="cart-discount" class="font-bold">-$0.00</span></div>
+                        <div class="flex justify-between"><span>Tax (8%):</span><span id="cart-tax">$0.00</span></div>
+                        <div class="flex justify-between font-extrabold text-white text-base pt-2 border-t border-slate-800"><span>Total:</span><span id="cart-total" class="text-indigo-400">$0.00</span></div>
+                    </div>
+                    <button onclick="proceedToCheckout()" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl text-sm transition">Proceed to Checkout</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- CHECKOUT MODAL -->
+    <div id="checkout-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-xl w-full overflow-hidden shadow-2xl p-6 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4 pb-2 border-b border-slate-800">
+                <h2 class="text-xl font-extrabold text-white">Checkout</h2>
+                <button onclick="closeCheckoutModal()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form id="checkout-form" onsubmit="handleOrderSubmit(event)" class="space-y-4">
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="block text-xs font-semibold text-slate-400 mb-1">Full Name</label><input type="text" id="cust-name" required class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-white"></div>
+                    <div data-bug-id="BUG-VAL-02"><label class="block text-xs font-semibold text-slate-400 mb-1">Email Address</label><input type="text" id="cust-email" placeholder="test@domain" required class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-white"></div>
+                </div>
+                <div data-bug-id="BUG-VAL-03"><label class="block text-xs font-semibold text-slate-400 mb-1">Phone Number</label><input type="text" id="cust-phone" onblur="handlePhoneBlur(this)" placeholder="555-0199" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-white"></div>
+                <div class="grid grid-cols-2 gap-3" data-bug-id="BUG-VAL-04">
+                    <div><label class="block text-xs font-semibold text-slate-400 mb-1">Expiration (MM/YYYY)</label><input type="text" id="card-exp" placeholder="01/2000" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-white font-mono"></div>
+                    <div><label class="block text-xs font-semibold text-slate-400 mb-1">CVV</label><input type="text" id="card-cvv" placeholder="123" maxlength="4" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-white font-mono"></div>
+                </div>
+                <div class="pt-4 flex gap-3">
+                    <button type="button" onclick="closeCheckoutModal()" class="w-1/3 bg-slate-800 text-slate-300 font-bold py-2.5 rounded-xl text-xs">Cancel</button>
+                    <button type="submit" id="checkout-submit-btn" data-bug-id="BUG-SEC-02" class="w-2/3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-xl text-xs">Pay & Complete Order</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- AUTHENTICATION MODAL -->
+    <div id="auth-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full overflow-hidden shadow-2xl p-6 relative">
+            <button onclick="closeAuthModal()" class="absolute top-3 right-3 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            <div class="flex border-b border-slate-800 mb-4 text-sm font-bold">
+                <button onclick="switchAuthTab('login')" id="auth-tab-login" class="flex-1 py-2 border-b-2 border-indigo-500 text-indigo-400">Login</button>
+                <button onclick="switchAuthTab('register')" id="auth-tab-register" class="flex-1 py-2 border-b-2 border-transparent text-slate-400">Register</button>
+            </div>
+            <form id="login-form" onsubmit="handleLoginSubmit(event)" class="space-y-3">
+                <div data-bug-id="BUG-AUT-01"><label class="block text-xs font-semibold text-slate-400 mb-1">Username / Email</label><input type="text" id="login-user" placeholder="admin' OR '1'='1" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-white"></div>
+                <div><label class="block text-xs font-semibold text-slate-400 mb-1">Password</label><input type="password" id="login-pass" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-white"></div>
+                <div class="flex items-center space-x-2" data-bug-id="BUG-AUT-02"><input type="checkbox" id="login-remember" class="rounded border-slate-700 bg-slate-950 text-indigo-500"><label class="text-xs text-slate-400">Remember Me</label></div>
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 rounded-xl text-xs transition">Login</button>
+            </form>
+            <form id="register-form" onsubmit="handleRegisterSubmit(event)" class="space-y-3 hidden">
+                <div><label class="block text-xs font-semibold text-slate-400 mb-1">Full Name</label><input type="text" id="reg-name" required class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-white"></div>
+                <div><label class="block text-xs font-semibold text-slate-400 mb-1">Email</label><input type="email" id="reg-email" required class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-white"></div>
+                <div data-bug-id="BUG-AUT-03"><label class="block text-xs font-semibold text-slate-400 mb-1">Password</label><input type="password" id="reg-pass" placeholder="123" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-white"></div>
+                <div data-bug-id="BUG-AUT-04"><label class="block text-xs font-semibold text-slate-400 mb-1">Confirm Password</label><input type="password" id="reg-pass-confirm" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 text-xs text-white"></div>
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2.5 rounded-xl text-xs transition">Create Account</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- PROFILE MODAL -->
+    <div id="profile-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full overflow-hidden shadow-2xl p-6 relative">
+            <button onclick="closeProfileModal()" class="absolute top-3 right-3 text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-lg"></i></button>
+            <h2 class="text-xl font-extrabold text-white mb-4">User Profile Settings</h2>
+            <form id="profile-edit-form" onsubmit="handleProfileSave(event)" class="space-y-3">
+                <div class="flex items-center space-x-4" data-bug-id="BUG-AUT-05">
+                    <div class="w-16 h-16 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center overflow-hidden broken-avatar-frame">
+                        <img id="profile-avatar-preview" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80" class="w-full h-full object-cover">
+                    </div>
+                    <div><label class="block text-xs font-semibold text-slate-400 mb-1">Avatar File</label><input type="file" id="avatar-file-input" onchange="handleAvatarUpload(this)" class="text-xs text-slate-400"></div>
+                </div>
+                <div><label class="block text-xs font-semibold text-slate-400 mb-1">Display Name</label><input type="text" id="profile-name-input" value="Jane Doe" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-white"></div>
+                <div data-bug-id="BUG-AUT-06"><label class="block text-xs font-semibold text-slate-400 mb-1">Email Address</label><input type="text" id="profile-email-input" value="jane.doe@example.com" class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2 text-xs text-white"></div>
+                <div class="flex justify-between items-center pt-2">
+                    <button type="button" onclick="handleLogout()" data-bug-id="BUG-AUT-07" class="text-rose-400 text-xs font-bold">Logout</button>
+                    <button type="submit" class="bg-indigo-600 text-white font-bold px-4 py-2 rounded-xl text-xs">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- QA CONTROL CENTER DRAWER -->
+    <div id="qa-drawer" class="fixed inset-y-0 right-0 w-full sm:w-[580px] bg-slate-950 text-slate-100 z-50 shadow-2xl flex flex-col transform translate-x-full transition-transform duration-300 ease-in-out border-l border-slate-800">
+        <div class="p-4 bg-slate-900 border-b border-slate-800 flex justify-between items-center">
+            <div class="flex items-center space-x-2"><i class="fa-solid fa-bug text-rose-500 text-xl"></i><h2 class="font-extrabold text-lg text-white">QA Control Center & Evaluator</h2></div>
+            <button onclick="toggleQADrawer()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+        </div>
+
+        <div class="flex border-b border-slate-800 bg-slate-900/60 text-xs font-bold">
+            <button onclick="switchQATab('checklist')" id="tab-btn-checklist" class="flex-1 py-3 text-center border-b-2 border-indigo-500 text-indigo-400">Bug Checklist (<span id="qa-found-count">0</span>/26)</button>
+            <button onclick="switchQATab('evaluator')" id="tab-btn-evaluator" class="flex-1 py-3 text-center border-b-2 border-transparent text-slate-400 hover:text-slate-200">✨ Report Evaluator</button>
+            <button onclick="switchQATab('logs')" id="tab-btn-logs" class="flex-1 py-3 text-center border-b-2 border-transparent text-slate-400 hover:text-slate-200">Evaluated Logs</button>
+        </div>
+
+        <div id="qa-tab-checklist" class="flex-1 overflow-y-auto p-4 space-y-4 text-xs">
+            <div class="bg-indigo-950/60 border border-indigo-800/50 p-3 rounded-xl text-indigo-200">Explore platform, check off bugs or evaluate reports!</div>
+            <div id="bug-checklist-container" class="space-y-2.5"></div>
+        </div>
+
+        <div id="qa-tab-evaluator" class="flex-1 overflow-y-auto p-4 space-y-4 text-xs hidden">
+            <div class="bg-slate-900 p-3.5 rounded-xl border border-slate-800">
+                <h3 class="font-extrabold text-white text-sm flex items-center gap-2"><i class="fa-solid fa-wand-magic-sparkles text-amber-400"></i><span>Bug Report Quality Evaluator</span></h3>
+                <p class="text-slate-400 mt-1 text-[11px]">Write your bug report below to test its structure and completeness.</p>
+            </div>
+            <form onsubmit="evaluateAndSaveBugReport(event)" class="space-y-3.5">
+                <div><label class="block text-slate-200 font-bold mb-1">Bug Summary / Title</label><input type="text" id="eval-title" required placeholder="e.g., Coupon FREE100 stacks infinitely" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-white"></div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="block text-slate-200 font-bold mb-1">Severity</label><select id="eval-severity" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-white"><option value="Low">Low</option><option value="Medium">Medium</option><option value="High">High</option><option value="Critical">Critical</option></select></div>
+                    <div><label class="block text-slate-200 font-bold mb-1">Category</label><select id="eval-category" class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-white"><option value="Visual">Visual / UI</option><option value="Functional">Functional</option><option value="Validation">Validation</option><option value="Authentication">Authentication</option></select></div>
+                </div>
+                <div><label class="block text-slate-200 font-bold mb-1">Steps to Reproduce (1., 2., 3...)</label><textarea id="eval-steps" rows="3" required placeholder="1. Open cart&#10;2. Apply coupon..." class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-white font-mono text-[11px]"></textarea></div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="block text-slate-200 font-bold mb-1">Expected</label><input type="text" id="eval-expected" required class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-white"></div>
+                    <div><label class="block text-slate-200 font-bold mb-1">Actual</label><input type="text" id="eval-actual" required class="w-full bg-slate-900 border border-slate-800 rounded-lg p-2.5 text-white"></div>
+                </div>
+                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold py-3 rounded-xl transition shadow-lg">Evaluate & Save Report</button>
+            </form>
+            <div id="eval-result-card" class="hidden bg-slate-900 border border-slate-700 p-4 rounded-xl space-y-2">
+                <div class="flex justify-between items-center"><span class="font-extrabold text-white">Feedback</span><div id="eval-score-badge" class="px-2.5 py-0.5 rounded text-[10px] font-black bg-indigo-600 text-white">Score: 0/100</div></div>
+                <div id="eval-feedback-text" class="text-slate-300 space-y-1"></div>
+            </div>
+        </div>
+
+        <div id="qa-tab-logs" class="flex-1 overflow-y-auto p-4 space-y-3 text-xs hidden">
+            <div class="flex justify-between items-center mb-2"><span class="text-slate-400 font-bold">Evaluated Reports</span><button onclick="exportBugReports()" class="bg-indigo-600 text-white px-2.5 py-1 rounded-lg">Export JSON</button></div>
+            <div id="saved-reports-container" class="space-y-2.5"></div>
+        </div>
+    </div>
+
+    <div id="toast-container" class="fixed bottom-4 left-4 z-50 space-y-2 pointer-events-none"></div>
+
+    <script type="application/json" id="bt-project-files">{"README.md": "# BuggyThreads QA Lab v1.6\n\n[![tests](https://github.com/MuntjanD/QA-Trainer-1.4/actions/workflows/tests.yml/badge.svg)](https://github.com/MuntjanD/QA-Trainer-1.4/actions/workflows/tests.yml)\n\nA practice web shop with **26 planted UI bugs**, a mock REST API with **17 planted API bugs**, a QA Control Center (bug checklist, report evaluator, Jira-style board, API runner) and a Playwright suite.\n\n## Run\nOpen `public/index.html` directly (the API runs inside the page), or:\n```bash\nnpm install && npx playwright install chromium\nnpm start              # http://localhost:3100\nnpm test               # bug build: known bugs are expected failures (test.fail)\nnpm run test:fixed     # fixed build: everything must pass (retest / regression)\n```\n\n## What is covered\n| Layer | Where | Notes |\n|---|---|---|\n| REST API | `tests/api/api.spec.js` | status codes, validation, auth, IDOR, stock, idempotency |\n| Contract tests | `tests/api/contract.spec.js` + `tests/schemas.json` | JSON Schema via Ajv; API-12 breaks the contract (price becomes a string in search) |\n| Failure simulation | `tests/ui/chaos.spec.js` | `page.route` injects 500, aborted connection, slow response, non-JSON body |\n| Accessibility | `tests/ui/a11y.spec.js` | axe-core; findings are attached as JSON for triage |\n| UI regression | `tests/ui/ui.spec.js` | filters, cart, coupon, checkout, QA tabs |\n| Visual bugs | in the app | click a visual defect (SALE badge, dropdown, overflowing title, Russian button) to log it |\n| REST practice | `tests/api/rest.spec.js` | pagination, rate limiting (429 + Retry-After), 405 + Allow, 415, invalid JSON |\n| Flaky tests | `tests/api/flaky.spec.js`, Flaky Lab tab, [docs/FLAKY_TESTS.md](docs/FLAKY_TESTS.md) | anti-pattern vs polling, detection by repetition, retries that hide flakiness |\n\n**Fixed build:** the toggle in QA Control Center (or `FIXED=1`) switches off 11 UI and 17 API bugs. Run the same tests in both modes: red-to-green proves the tests catch exactly those bugs.\n`test.fail` keeps the bug build green while a bug exists and reports \"unexpectedly passed\" when it disappears.\n\n## Planted API bugs\n| ID | Endpoint | Bug |\n|---|---|---|\n| API-01 | POST /auth/register | accepts password \"123\" |\n| API-02 | POST /auth/login | email containing \"admin\" logs in without the password |\n| API-03 | GET /products?maxPrice | returns items >= max (inverted) |\n| API-04 | GET /products/:id | unknown id returns 200 {} instead of 404 |\n| API-05 | POST /cart/items | accepts negative qty and out-of-stock items |\n| API-06 | POST /cart/coupon | FREE100 stacks |\n| API-07 | POST /orders | empty cart accepted, stock never decremented |\n| API-08 | GET /orders/:id | IDOR, no ownership check |\n| API-09 | GET /order-tracking/:id | always 500 |\n| API-10 | POST /auth/register | returns 200 instead of 201 |\n| API-11 | GET /orders | no authentication required |\n| API-12 | GET /products?q= | price returned as string (contract break) |\n| API-13 | GET /products?page=&limit= | page 1 skips the first page (off-by-one), last page is empty |\n| API-14 | GET /products?page=&limit= | page=0, negative limit and limit=1000 are accepted |\n| API-15 | POST /auth/login | unlimited password guessing (no 429) |\n| API-16 | DELETE /products | 404 instead of 405 with an Allow header |\n| API-17 | POST /auth/login | accepts a non-JSON Content-Type (no 415) |\n\n## CI\n`.github/workflows/tests.yml` runs the suite twice (matrix `bugs` / `fixed`) and uploads the Playwright report.\nPostman: QA Control Center > API Test > \"Postman collection\" exports all endpoints.\n", "package.json": "{\"name\":\"buggythreads-qa-lab\",\"version\":\"1.6.0\",\"private\":true,\"scripts\":{\"start\":\"node server.js\",\"test\":\"playwright test\",\"test:api\":\"playwright test --project=api\",\"test:ui\":\"playwright test --project=ui\",\"test:fixed\":\"FIXED=1 playwright test\",\"start:fixed\":\"FIXED=1 node server.js\"},\"devDependencies\":{\"@axe-core/playwright\":\"^4.14.0\",\"@playwright/test\":\"^1.48.0\",\"ajv\":\"^8.20.0\"}}", "playwright.config.js": "const { defineConfig } = require('@playwright/test');\nmodule.exports = defineConfig({\n  workers: 1,                                           // API tests share one in-memory server\n  reporter: [['list'], ['html', { open: 'never' }]],\n  use: { baseURL: 'http://localhost:3100', trace: 'retain-on-failure' },\n  webServer: { command: 'node server.js', url: 'http://localhost:3100/api/v1/health', reuseExistingServer: !process.env.CI },\n  projects: [\n    { name: 'api', testDir: './tests/api' },\n    { name: 'ui', testDir: './tests/ui', use: { browserName: 'chromium' } },\n  ],\n});\n", "server.js": "// BuggyThreads server: static files + the shared mock API. `FIXED=1 node server.js` starts in \"fixed build\" mode.\nconst http = require('http'), fs = require('fs'), path = require('path');\nconst api = require('./mock-api.js')(JSON.parse(fs.readFileSync(path.join(__dirname, 'products.seed.json'), 'utf8')));\nif (process.env.FIXED === '1') api.setFixed(true);\nconst PORT = process.env.PORT || 3100, MIME = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json' };\nhttp.createServer((req, res) => {\n  if (!req.url.startsWith('/api/')) {\n    const p = decodeURIComponent(req.url.split('?')[0]), f = path.join(__dirname, 'public', p === '/' ? 'index.html' : p);\n    if (!f.startsWith(path.join(__dirname, 'public')) || !fs.existsSync(f)) { res.writeHead(404); return res.end('Not found'); }\n    res.writeHead(200, { 'Content-Type': MIME[path.extname(f)] || 'application/octet-stream' }); return fs.createReadStream(f).pipe(res);\n  }\n  let raw = ''; req.on('data', c => raw += c); req.on('end', () => {\n    let b = {}; try { b = raw ? JSON.parse(raw) : {}; } catch { res.writeHead(400, { 'Content-Type': 'application/json' }); return res.end('{\"error\":\"Invalid JSON\"}'); }\n    const [code, body, headers] = api.handle(req.method, req.url, b, req.headers.authorization, req.headers['content-type']);\n    res.writeHead(code, { 'Content-Type': 'application/json', ...(headers || {}) }); res.end(JSON.stringify(body));\n  });\n}).listen(PORT, () => console.log('BuggyThreads on http://localhost:' + PORT + (api.isFixed() ? ' (fixed build)' : '')));\n", "mock-api.js": "// Shared mock REST API: used by server.js (Node) and embedded in the single HTML file. No dependencies.\n(function (g) {\n  function createMockApi(seed) {\n    let S, fixed = false;\n    const rnd = n => { let t = (n + 0x6D2B79F5) >>> 0; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; // deterministic pseudo-random\n    const ALLOW = { '/api/v1/products': 'GET', '/api/v1/cart': 'GET', '/api/v1/orders': 'GET, POST', '/api/v1/auth/login': 'POST', '/api/v1/auth/register': 'POST' };\n    const reset = () => { S = { products: seed.map(p => ({ id: p.id, name: p.name, category: p.category, price: p.price, stock: p.stock })), users: { 'qa@buggythreads.com': 'Passw0rd!' }, tokens: {}, carts: {}, disc: {}, orders: [], next: 1001, fails: {}, flaky: {} }; };\n    reset();\n    function handle(m, u, b, auth, ct) {\n      b = b || {};\n      if (fixed && m === 'POST' && ct && !/json/i.test(ct) && Object.keys(b).length) return [415, { error: 'Content-Type must be application/json' }]; // API-17\n      const U = new URL(u, 'http://x'), p = U.pathname, q = U.searchParams, user = S.tokens[(auth || '').replace('Bearer ', '')];\n      const cart = () => (S.carts[user] = S.carts[user] || []);\n      const tot = () => { const sub = cart().reduce((s, i) => s + i.price * i.qty, 0), d = S.disc[user] || 0; return { subtotal: +sub.toFixed(2), discount: d, total: +(sub - d).toFixed(2) }; };\n      let r; const is = (M, re) => m === M && (r = p.match(re));\n      if (is('GET', /^\\/api\\/v1\\/health$/)) return [200, { status: 'ok', fixed }];\n      if (is('POST', /^\\/api\\/v1\\/test\\/reset$/)) { reset(); return [200, { reset: true }]; }\n      if (is('POST', /^\\/api\\/v1\\/test\\/mode$/)) { fixed = !!b.fixed; return [200, { fixed }]; }\n      if (is('GET', /^\\/api\\/v1\\/products$/)) {\n        let x = S.products;\n        if (q.get('category')) x = x.filter(i => i.category === q.get('category'));\n        if (q.get('maxPrice')) x = x.filter(i => fixed ? i.price <= +q.get('maxPrice') : i.price >= +q.get('maxPrice')); // API-03\n        if (q.get('q')) x = x.filter(i => i.name.toLowerCase().includes(q.get('q').toLowerCase()));\n        const items = q.get('q') && !fixed ? x.map(i => ({ ...i, price: String(i.price) })) : x;                           // API-12 contract break\n        const pg = q.get('page'), lm = q.get('limit');\n        if (pg !== null || lm !== null) {\n          const page = pg === null ? 1 : +pg, limit = lm === null ? 10 : +lm;\n          if (fixed && (!Number.isInteger(page) || page < 1 || !Number.isInteger(limit) || limit < 1)) return [400, { error: 'page and limit must be positive integers' }]; // API-14\n          const size = fixed ? Math.min(limit, 100) : limit, start = fixed ? (page - 1) * size : page * size;                    // API-13 off-by-one\n          const slice = items.slice(Math.max(0, start), Math.max(0, start) + size);\n          return [200, { total: items.length, page, limit: size, count: slice.length, items: slice }];\n        }\n        return [200, { count: items.length, items }];\n      }\n      if (is('GET', /^\\/api\\/v1\\/products\\/([\\w-]+)$/)) { const x = S.products.find(i => i.id === r[1]); return x ? [200, x] : fixed ? [404, { error: 'product not found' }] : [200, {}]; } // API-04\n      if (is('POST', /^\\/api\\/v1\\/auth\\/register$/)) {\n        if (!b.email || !b.password) return [400, { error: 'email and password required' }];\n        if (fixed && String(b.password).length < 8) return [400, { error: 'password must have 8+ characters' }];          // API-01\n        if (S.users[b.email]) return [409, { error: 'exists' }];\n        S.users[b.email] = b.password; return [fixed ? 201 : 200, { email: b.email }];                                    // API-10\n      }\n      if (is('POST', /^\\/api\\/v1\\/auth\\/login$/)) {\n        const key = String(b.email || '');\n        if (fixed && (S.fails[key] || 0) >= 5) return [429, { error: 'Too many failed attempts' }, { 'Retry-After': '60' }];          // API-15\n        const ok = S.users[b.email] === b.password || (!fixed && String(b.email || '').includes('admin'));                                                    // API-02\n        if (!ok) { S.fails[key] = (S.fails[key] || 0) + 1; return [401, { error: 'Invalid credentials' }]; }\n        S.fails[key] = 0;\n        const t = 'tok_' + Math.random().toString(36).slice(2); S.tokens[t] = b.email; return [200, { token: t }];\n      }\n      if (is('GET', /^\\/api\\/v1\\/cart$/)) return user ? [200, { items: cart(), ...tot() }] : [401, { error: 'auth required' }];\n      if (is('POST', /^\\/api\\/v1\\/cart\\/items$/)) {\n        if (!user) return [401, { error: 'auth required' }];\n        const pr = S.products.find(i => i.id === b.productId); if (!pr) return [404, { error: 'unknown product' }];\n        if (fixed) { if (!Number.isInteger(b.qty) || b.qty < 1) return [400, { error: 'qty must be an integer >= 1' }]; if (pr.stock === 0 || b.qty > pr.stock) return [409, { error: 'insufficient stock' }]; } // API-05\n        cart().push({ productId: pr.id, name: pr.name, price: pr.price, qty: b.qty }); return [201, { items: cart(), ...tot() }];\n      }\n      if (is('POST', /^\\/api\\/v1\\/cart\\/coupon$/)) {\n        if (!user) return [401, { error: 'auth required' }];\n        if (String(b.code).toUpperCase() !== 'FREE100') return [400, { error: 'Invalid coupon' }];\n        if (fixed && (S.disc[user] || 0) > 0) return [409, { error: 'coupon already applied' }];                          // API-06\n        S.disc[user] = (S.disc[user] || 0) + 100; return [200, tot()];\n      }\n      if (is('POST', /^\\/api\\/v1\\/orders$/)) {\n        if (!user) return [401, { error: 'auth required' }];\n        const items = [...cart()];\n        if (fixed) { if (!items.length) return [400, { error: 'cart is empty' }]; items.forEach(i => { const pr = S.products.find(x => x.id === i.productId); if (pr) pr.stock -= i.qty; }); } // API-07\n        const o = { id: S.next++, owner: user, items, ...tot() }; S.orders.push(o); S.carts[user] = []; S.disc[user] = 0; return [201, o];\n      }\n      if (is('GET', /^\\/api\\/v1\\/orders$/)) {\n        if (!fixed) return [200, { orders: S.orders }];                                                                    // API-11\n        return user ? [200, { orders: S.orders.filter(o => o.owner === user) }] : [401, { error: 'auth required' }];\n      }\n      if (is('GET', /^\\/api\\/v1\\/orders\\/(\\d+)$/)) {\n        const o = S.orders.find(i => i.id === +r[1]); if (!o) return [404, { error: 'not found' }];\n        if (fixed && o.owner !== user) return user ? [403, { error: 'forbidden' }] : [401, { error: 'auth required' }];    // API-08\n        return [200, o];\n      }\n      if (is('GET', /^\\/api\\/v1\\/order-tracking\\/(\\d+)$/)) {                                                               // API-09\n        if (!fixed) return [500, { error: 'Internal Server Error' }];\n        const o = S.orders.find(i => i.id === +r[1]); return o ? [200, { id: o.id, status: 'shipped' }] : [404, { error: 'order not found' }];\n      }\n      if (is('GET', /^\\/api\\/v1\\/flaky\\/random$/)) {          // flaky lab: deterministic \"random\" failures, pass n= to make a test repeatable\n        const seed = +(q.get('seed') || 1), pr = +(q.get('p') || 0.3), n = q.get('n') !== null ? +q.get('n') : (S.flaky['r' + seed] = (S.flaky['r' + seed] || 0) + 1);\n        return rnd(seed * 1000 + n) < pr ? [503, { error: 'temporarily unavailable', attempt: n }, { 'Retry-After': '1' }] : [200, { ok: true, attempt: n }];\n      }\n      if (is('GET', /^\\/api\\/v1\\/flaky\\/eventual$/)) {       // flaky lab: eventual consistency, 202 until the `after`-th poll\n        const id = q.get('id') || 'job', after = +(q.get('after') || 3), n = q.get('n') !== null ? +q.get('n') : (S.flaky['e' + id] = (S.flaky['e' + id] || 0) + 1);\n        return n <= after ? [202, { status: 'processing', poll: n }] : [200, { status: 'done', poll: n }];\n      }\n      if (fixed && ALLOW[p]) return [405, { error: 'method not allowed' }, { Allow: ALLOW[p] }];                                   // API-16\n      return [404, { error: 'no such route' }];\n    }\n    return { handle, reset, setFixed: v => { fixed = !!v; }, isFixed: () => fixed };\n  }\n  g.createMockApi = createMockApi; if (typeof module !== 'undefined') module.exports = createMockApi;\n})(typeof window !== 'undefined' ? window : globalThis);\n", "products.seed.json": "[\n {\n  \"id\": \"prod-01\",\n  \"name\": \"Classic Urban Denim Jacket Extra Long Name Text Overflow Display Bug Test\",\n  \"category\": \"men\",\n  \"price\": 89.99,\n  \"stock\": 12\n },\n {\n  \"id\": \"prod-02\",\n  \"name\": \"Women Lightweight Summer Floral Dress\",\n  \"category\": \"women\",\n  \"price\": 49.99,\n  \"stock\": 8\n },\n {\n  \"id\": \"prod-03\",\n  \"name\": \"Minimalist Leather Wrist Watch\",\n  \"category\": \"accessories\",\n  \"price\": 120,\n  \"stock\": 0\n },\n {\n  \"id\": \"prod-04\",\n  \"name\": \"Unisex Premium Fleece Hoodie\",\n  \"category\": \"men\",\n  \"price\": 15,\n  \"stock\": 20\n },\n {\n  \"id\": \"prod-05\",\n  \"name\": \"Athletic Running Sneakers\",\n  \"category\": \"accessories\",\n  \"price\": 110,\n  \"stock\": 5\n },\n {\n  \"id\": \"prod-06\",\n  \"name\": \"Vintage Aviator Sunglasses UV400\",\n  \"category\": \"accessories\",\n  \"price\": 34.5,\n  \"stock\": 15\n },\n {\n  \"id\": \"prod-07\",\n  \"name\": \"Urban Explorer Leather Backpack\",\n  \"category\": \"accessories\",\n  \"price\": 75,\n  \"stock\": 6\n },\n {\n  \"id\": \"prod-08\",\n  \"name\": \"Wireless Noise-Canceling Headphones\",\n  \"category\": \"electronics\",\n  \"price\": 249.99,\n  \"stock\": 10\n },\n {\n  \"id\": \"prod-09\",\n  \"name\": \"Smart Fitness Activity Tracker Watch\",\n  \"category\": \"electronics\",\n  \"price\": 79.99,\n  \"stock\": 14\n },\n {\n  \"id\": \"prod-10\",\n  \"name\": \"Portable Ultra-Slim Power Bank 10000mAh\",\n  \"category\": \"electronics\",\n  \"price\": 39.99,\n  \"stock\": 25\n },\n {\n  \"id\": \"prod-11\",\n  \"name\": \"Professional Mechanical Gaming Keyboard\",\n  \"category\": \"electronics\",\n  \"price\": 99,\n  \"stock\": 7\n },\n {\n  \"id\": \"prod-12\",\n  \"name\": \"Ergonomic Wireless Optical Mouse\",\n  \"category\": \"electronics\",\n  \"price\": 45,\n  \"stock\": 18\n },\n {\n  \"id\": \"prod-13\",\n  \"name\": \"Slim Fit Business Formal Blazer\",\n  \"category\": \"men\",\n  \"price\": 145,\n  \"stock\": 4\n },\n {\n  \"id\": \"prod-14\",\n  \"name\": \"Casual Slim Fit Chino Pants\",\n  \"category\": \"men\",\n  \"price\": 55,\n  \"stock\": 16\n },\n {\n  \"id\": \"prod-15\",\n  \"name\": \"Elegant Evening Silk Wrap Dress\",\n  \"category\": \"women\",\n  \"price\": 125,\n  \"stock\": 5\n },\n {\n  \"id\": \"prod-16\",\n  \"name\": \"High-Waisted Skinny Stretch Jeans\",\n  \"category\": \"women\",\n  \"price\": 68,\n  \"stock\": 11\n },\n {\n  \"id\": \"prod-17\",\n  \"name\": \"Cozy Oversized Knit Wool Sweater\",\n  \"category\": \"women\",\n  \"price\": 62,\n  \"stock\": 9\n },\n {\n  \"id\": \"prod-18\",\n  \"name\": \"Pure Cashmere Winter Scarf\",\n  \"category\": \"accessories\",\n  \"price\": 45,\n  \"stock\": 13\n },\n {\n  \"id\": \"prod-19\",\n  \"name\": \"Genuine Leather RFID Blocking Wallet\",\n  \"category\": \"accessories\",\n  \"price\": 35,\n  \"stock\": 22\n },\n {\n  \"id\": \"prod-20\",\n  \"name\": \"True Wireless Stereo Bluetooth Earbuds\",\n  \"category\": \"electronics\",\n  \"price\": 89,\n  \"stock\": 0\n },\n {\n  \"id\": \"prod-21\",\n  \"name\": \"Tactical Waterproof Watch\",\n  \"category\": \"accessories\",\n  \"price\": 150,\n  \"stock\": 4\n },\n {\n  \"id\": \"prod-22\",\n  \"name\": \"Leather Messenger Bag\",\n  \"category\": \"accessories\",\n  \"price\": 95,\n  \"stock\": 10\n },\n {\n  \"id\": \"prod-23\",\n  \"name\": \"Silk Necktie Classic Navy\",\n  \"category\": \"accessories\",\n  \"price\": 25,\n  \"stock\": 30\n },\n {\n  \"id\": \"prod-24\",\n  \"name\": \"Polarized Sports Sunglasses\",\n  \"category\": \"accessories\",\n  \"price\": 55,\n  \"stock\": 12\n },\n {\n  \"id\": \"prod-25\",\n  \"name\": \"Sterling Silver Bracelet\",\n  \"category\": \"accessories\",\n  \"price\": 85,\n  \"stock\": 0\n },\n {\n  \"id\": \"prod-26\",\n  \"name\": \"Oversized Graphic Cotton T-Shirt\",\n  \"category\": \"men\",\n  \"price\": 28,\n  \"stock\": 45\n },\n {\n  \"id\": \"prod-27\",\n  \"name\": \"Waterproof Ski Jacket\",\n  \"category\": \"men\",\n  \"price\": 220,\n  \"stock\": 7\n },\n {\n  \"id\": \"prod-28\",\n  \"name\": \"Thermal Running Gloves\",\n  \"category\": \"accessories\",\n  \"price\": 22,\n  \"stock\": 25\n },\n {\n  \"id\": \"prod-29\",\n  \"name\": \"Wool Fedora Hat\",\n  \"category\": \"accessories\",\n  \"price\": 42,\n  \"stock\": 8\n },\n {\n  \"id\": \"prod-30\",\n  \"name\": \"Canvas Travel Duffel Bag\",\n  \"category\": \"accessories\",\n  \"price\": 88,\n  \"stock\": 14\n },\n {\n  \"id\": \"prod-31\",\n  \"name\": \"Smart Home Hub Speaker\",\n  \"category\": \"electronics\",\n  \"price\": 129,\n  \"stock\": 9\n },\n {\n  \"id\": \"prod-32\",\n  \"name\": \"4K Ultra HD Action Camera\",\n  \"category\": \"electronics\",\n  \"price\": 199,\n  \"stock\": 5\n },\n {\n  \"id\": \"prod-33\",\n  \"name\": \"USB-C Multiport Hub Adapter\",\n  \"category\": \"electronics\",\n  \"price\": 35,\n  \"stock\": 40\n },\n {\n  \"id\": \"prod-34\",\n  \"name\": \"LED Desk Lamp with Wireless Charger\",\n  \"category\": \"electronics\",\n  \"price\": 49,\n  \"stock\": 15\n },\n {\n  \"id\": \"prod-35\",\n  \"name\": \"Smart Wi-Fi Plug Socket\",\n  \"category\": \"electronics\",\n  \"price\": 19.99,\n  \"stock\": 50\n },\n {\n  \"id\": \"prod-36\",\n  \"name\": \"Pliss\u00e9 High-Waist Skirt\",\n  \"category\": \"women\",\n  \"price\": 58,\n  \"stock\": 12\n },\n {\n  \"id\": \"prod-37\",\n  \"name\": \"Cropped Knit Cardigan\",\n  \"category\": \"women\",\n  \"price\": 48,\n  \"stock\": 18\n },\n {\n  \"id\": \"prod-38\",\n  \"name\": \"Satin Peplum Blouse\",\n  \"category\": \"women\",\n  \"price\": 65,\n  \"stock\": 0\n },\n {\n  \"id\": \"prod-39\",\n  \"name\": \"Faux Leather Biker Jacket\",\n  \"category\": \"women\",\n  \"price\": 135,\n  \"stock\": 6\n },\n {\n  \"id\": \"prod-40\",\n  \"name\": \"Velvet Evening Clutch\",\n  \"category\": \"accessories\",\n  \"price\": 40,\n  \"stock\": 11\n }\n]", "tests/helpers.js": "const { test } = require('@playwright/test');\nconst FIXED = process.env.FIXED === '1';              // FIXED=1 npm test  -> retest against the \"fixed build\"\nconst A = '/api/v1';\nconst knownBug = id => test.fail(!FIXED, id);          // expected to fail while the bug exists, must pass once fixed\nconst setup = async request => { await request.post(`${A}/test/mode`, { data: { fixed: FIXED } }); await request.post(`${A}/test/reset`); };\nconst login = async (request, email = 'qa@buggythreads.com', password = 'Passw0rd!') =>\n  ({ headers: { Authorization: 'Bearer ' + (await (await request.post(`${A}/auth/login`, { data: { email, password } })).json()).token } });\nconst products = async request => (await (await request.get(`${A}/products`)).json()).items;\nconst inStock = async request => (await products(request)).find(p => p.stock > 5);\nconst outOfStock = async request => (await products(request)).find(p => p.stock === 0);\nconst add = (request, auth, productId, qty) => request.post(`${A}/cart/items`, { ...auth, data: { productId, qty } });\nmodule.exports = { FIXED, A, knownBug, setup, login, products, inStock, outOfStock, add };\n", "tests/schemas.json": "{\n  \"product\": { \"type\": \"object\", \"required\": [\"id\", \"name\", \"category\", \"price\", \"stock\"],\n    \"properties\": { \"id\": { \"type\": \"string\" }, \"name\": { \"type\": \"string\" }, \"category\": { \"type\": \"string\" }, \"price\": { \"type\": \"number\", \"minimum\": 0 }, \"stock\": { \"type\": \"integer\", \"minimum\": 0 } } },\n  \"token\": { \"type\": \"object\", \"required\": [\"token\"], \"properties\": { \"token\": { \"type\": \"string\" } } },\n  \"order\": { \"type\": \"object\", \"required\": [\"id\", \"owner\", \"items\", \"subtotal\", \"total\"],\n    \"properties\": { \"id\": { \"type\": \"integer\" }, \"owner\": { \"type\": \"string\" }, \"items\": { \"type\": \"array\" }, \"subtotal\": { \"type\": \"number\" }, \"total\": { \"type\": \"number\" } } },\n  \"error\": { \"type\": \"object\", \"required\": [\"error\"], \"properties\": { \"error\": { \"type\": \"string\" } } }\n}\n", "tests/api/api.spec.js": "const { test, expect } = require('@playwright/test');\nconst { A, knownBug, setup, login, products, inStock, outOfStock, add } = require('../helpers');\ntest.beforeEach(({ request }) => setup(request));\n\ntest.describe('Products', () => {\n  test('lists products with matching count', async ({ request }) => {\n    const r = await request.get(`${A}/products`); expect(r.status()).toBe(200);\n    const j = await r.json(); expect(j.count).toBe(j.items.length); expect(j.count).toBeGreaterThan(0);\n  });\n  test('category filter', async ({ request }) => {\n    const j = await (await request.get(`${A}/products?category=electronics`)).json();\n    expect(j.items.length).toBeGreaterThan(0); for (const i of j.items) expect(i.category).toBe('electronics');\n  });\n  test('API-03 maxPrice returns only items <= max', async ({ request }) => {\n    knownBug('API-03 inverted maxPrice filter');\n    for (const i of (await (await request.get(`${A}/products?maxPrice=50`)).json()).items) expect(i.price).toBeLessThanOrEqual(50);\n  });\n  test('API-04 unknown product returns 404', async ({ request }) => {\n    knownBug('API-04 returns 200 {}'); expect((await request.get(`${A}/products/nope`)).status()).toBe(404);\n  });\n});\n\ntest.describe('Auth', () => {\n  test('valid login returns token', async ({ request }) => { expect((await login(request)).headers.Authorization.length).toBeGreaterThan(10); });\n  test('wrong password rejected', async ({ request }) => {\n    expect((await request.post(`${A}/auth/login`, { data: { email: 'qa@buggythreads.com', password: 'bad' } })).status()).toBe(401);\n  });\n  test('API-02 admin user needs the correct password', async ({ request }) => {\n    knownBug('API-02 admin bypass');\n    expect((await request.post(`${A}/auth/login`, { data: { email: 'admin@x.com', password: 'wrong' } })).status()).toBe(401);\n  });\n  test('API-01 weak password rejected on register', async ({ request }) => {\n    knownBug('API-01 accepts \"123\"');\n    expect((await request.post(`${A}/auth/register`, { data: { email: 'n@x.com', password: '123' } })).status()).toBe(400);\n  });\n  test('API-10 register returns 201', async ({ request }) => {\n    knownBug('API-10 returns 200');\n    expect((await request.post(`${A}/auth/register`, { data: { email: 'ok@x.com', password: 'Str0ng!Pass' } })).status()).toBe(201);\n  });\n});\n\ntest.describe('Cart & orders', () => {\n  test('cart requires auth', async ({ request }) => { expect((await request.get(`${A}/cart`)).status()).toBe(401); });\n  test('add item and compute subtotal', async ({ request }) => {\n    const p = await inStock(request), r = await add(request, await login(request), p.id, 2);\n    expect(r.status()).toBe(201); expect((await r.json()).subtotal).toBeCloseTo(p.price * 2, 2);\n  });\n  test('API-05a negative quantity rejected', async ({ request }) => {\n    knownBug('API-05 accepts qty -5'); expect((await add(request, await login(request), (await inStock(request)).id, -5)).status()).toBe(400);\n  });\n  test('API-05b out-of-stock item rejected', async ({ request }) => {\n    knownBug('API-05 accepts stock 0 item'); expect((await add(request, await login(request), (await outOfStock(request)).id, 1)).status()).toBe(409);\n  });\n  test('API-06 coupon applies only once', async ({ request }) => {\n    knownBug('API-06 coupon stacks');\n    const a = await login(request); await add(request, a, (await inStock(request)).id, 1);\n    for (let i = 0; i < 2; i++) await request.post(`${A}/cart/coupon`, { ...a, data: { code: 'FREE100' } });\n    expect((await (await request.get(`${A}/cart`, a)).json()).discount).toBe(100);\n  });\n  test('API-07a empty cart cannot be ordered', async ({ request }) => {\n    knownBug('API-07 empty order accepted'); expect((await request.post(`${A}/orders`, await login(request))).status()).toBe(400);\n  });\n  test('order is created from cart', async ({ request }) => {\n    const p = await inStock(request), a = await login(request); await add(request, a, p.id, 1);\n    expect((await (await request.post(`${A}/orders`, a)).json()).total).toBeCloseTo(p.price, 2);\n  });\n  test('API-07b stock decreases after order', async ({ request }) => {\n    knownBug('API-07 stock never decremented');\n    const p = await inStock(request), a = await login(request); await add(request, a, p.id, 1); await request.post(`${A}/orders`, a);\n    expect((await (await request.get(`${A}/products/${p.id}`)).json()).stock).toBe(p.stock - 1);\n  });\n  test('API-08 user cannot read another user order', async ({ request }) => {\n    knownBug('API-08 IDOR');\n    const a = await login(request); await add(request, a, (await inStock(request)).id, 1);\n    const o = await (await request.post(`${A}/orders`, a)).json();\n    await request.post(`${A}/auth/register`, { data: { email: 'other@x.com', password: 'Str0ng!Pass' } });\n    expect([403, 404]).toContain((await request.get(`${A}/orders/${o.id}`, await login(request, 'other@x.com', 'Str0ng!Pass'))).status());\n  });\n  test('API-11 order list requires auth', async ({ request }) => { knownBug('API-11 open order list'); expect((await request.get(`${A}/orders`)).status()).toBe(401); });\n  test('API-09 order tracking never returns 500', async ({ request }) => { knownBug('API-09 always 500'); expect((await request.get(`${A}/order-tracking/1001`)).status()).toBeLessThan(500); });\n});\n", "tests/api/contract.spec.js": "// Contract tests: every response must match a JSON Schema (tests/schemas.json).\nconst { test, expect } = require('@playwright/test');\nconst Ajv = require('ajv'); const schemas = require('../schemas.json');\nconst { A, knownBug, setup, login, inStock, add } = require('../helpers');\nconst ajv = new Ajv({ allErrors: true }), check = (name, data) => { const v = ajv.compile(schemas[name]); v(data); return v.errors ? v.errors.map(e => `${e.instancePath || '/'} ${e.message}`) : []; };\ntest.beforeEach(({ request }) => setup(request));\n\ntest('GET /products: every item matches the product schema', async ({ request }) => {\n  for (const i of (await (await request.get(`${A}/products`)).json()).items) expect(check('product', i)).toEqual([]);\n});\ntest('API-12 GET /products?q= keeps price numeric', async ({ request }) => {\n  knownBug('API-12 price becomes a string in search results');\n  const items = (await (await request.get(`${A}/products?q=a`)).json()).items; expect(items.length).toBeGreaterThan(0);\n  for (const i of items) expect(check('product', i)).toEqual([]);\n});\ntest('POST /auth/login matches the token schema', async ({ request }) => {\n  const r = await request.post(`${A}/auth/login`, { data: { email: 'qa@buggythreads.com', password: 'Passw0rd!' } });\n  expect(check('token', await r.json())).toEqual([]);\n});\ntest('POST /orders matches the order schema', async ({ request }) => {\n  const a = await login(request); await add(request, a, (await inStock(request)).id, 1);\n  expect(check('order', await (await request.post(`${A}/orders`, a)).json())).toEqual([]);\n});\ntest('error responses match the error schema', async ({ request }) => {\n  for (const r of [await request.get(`${A}/cart`), await request.get(`${A}/nope`)]) expect(check('error', await r.json())).toEqual([]);\n});\n", "tests/api/rest.spec.js": "// REST practice: pagination, rate limiting and HTTP semantics.\nconst { test, expect } = require('@playwright/test');\nconst { A, knownBug, setup } = require('../helpers');\ntest.beforeEach(({ request }) => setup(request));\nconst page = (request, qs) => request.get(`${A}/products?${qs}`).then(r => r.json());\nconst ids = j => j.items.map(i => i.id);\n\ntest.describe('Pagination', () => {\n  test('page 1 returns the first items of the full list', async ({ request }) => {\n    knownBug('API-13 page 1 skips the first page (off-by-one)');\n    const all = ids(await page(request, '')), p1 = await page(request, 'page=1&limit=5');\n    expect(ids(p1)).toEqual(all.slice(0, 5)); expect(p1).toMatchObject({ page: 1, limit: 5, count: 5, total: all.length });\n  });\n  test('last page contains the remainder', async ({ request }) => {\n    knownBug('API-13 last page comes back empty');\n    const total = (await page(request, '')).count, last = Math.ceil(total / 15), j = await page(request, `page=${last}&limit=15`);\n    expect(j.count).toBe(total - 15 * (last - 1));\n  });\n  test('page past the end is an empty list, not an error', async ({ request }) => {\n    const r = await request.get(`${A}/products?page=999&limit=10`); expect(r.status()).toBe(200); expect((await r.json()).items).toEqual([]);\n  });\n  test('API-14 page=0 is rejected', async ({ request }) => { knownBug('API-14 accepts page=0'); expect((await request.get(`${A}/products?page=0&limit=5`)).status()).toBe(400); });\n  test('API-14 negative limit is rejected', async ({ request }) => { knownBug('API-14 accepts limit=-5'); expect((await request.get(`${A}/products?page=1&limit=-5`)).status()).toBe(400); });\n  test('API-14 limit is capped at 100', async ({ request }) => { knownBug('API-14 no upper limit'); expect((await page(request, 'page=1&limit=1000')).limit).toBeLessThanOrEqual(100); });\n});\n\ntest.describe('Rate limiting', () => {\n  test('API-15 sixth failed login in a row gets 429 with Retry-After', async ({ request }) => {\n    knownBug('API-15 unlimited password guessing');\n    let last;\n    for (let i = 0; i < 6; i++) last = await request.post(`${A}/auth/login`, { data: { email: 'qa@buggythreads.com', password: 'wrong' + i } });\n    expect(last.status()).toBe(429); expect(last.headers()['retry-after']).toBeTruthy();\n  });\n  test('five failed logins are still plain 401s', async ({ request }) => {\n    for (let i = 0; i < 5; i++) expect((await request.post(`${A}/auth/login`, { data: { email: 'qa@buggythreads.com', password: 'wrong' } })).status()).toBe(401);\n  });\n});\n\ntest.describe('HTTP semantics', () => {\n  test('API-16 DELETE on a read-only collection returns 405 with Allow', async ({ request }) => {\n    knownBug('API-16 returns 404 instead of 405');\n    const r = await request.delete(`${A}/products`); expect(r.status()).toBe(405); expect(r.headers()['allow']).toContain('GET');\n  });\n  test('API-17 non-JSON Content-Type returns 415', async ({ request }) => {\n    knownBug('API-17 accepts text/plain');\n    const r = await request.post(`${A}/auth/login`, { headers: { 'Content-Type': 'text/plain' }, data: '{\"email\":\"qa@buggythreads.com\",\"password\":\"Passw0rd!\"}' });\n    expect(r.status()).toBe(415);\n  });\n  test('unknown route is a plain 404', async ({ request }) => { expect((await request.get(`${A}/nope`)).status()).toBe(404); });\n  test('invalid JSON body returns 400', async ({ request }) => {\n    expect((await request.post(`${A}/auth/login`, { headers: { 'Content-Type': 'application/json' }, data: Buffer.from('{bad') })).status()).toBe(400);\n  });\n});\n", "tests/api/flaky.spec.js": "// Flaky-test lab. The endpoints are deterministic (pass n=...), so these tests are reproducible while still teaching real flakiness patterns.\nconst { test, expect } = require('@playwright/test');\nconst { A } = require('../helpers');\nconst get = (request, path) => request.get(`${A}${path}`);\n\ntest('ANTI-PATTERN: asserting immediately on an eventually-consistent endpoint', async ({ request }) => {\n  test.fail(true, 'documents the anti-pattern: the job is still processing on the first call');\n  expect((await get(request, '/flaky/eventual?id=a&after=3&n=1')).status()).toBe(200);\n});\ntest('GOOD: poll until the job is done instead of sleeping', async ({ request }) => {\n  let poll = 0;\n  await expect.poll(async () => (await get(request, `/flaky/eventual?id=b&after=3&n=${++poll}`)).status(), { intervals: [50], timeout: 5000 }).toBe(200);\n  expect(poll).toBe(4);\n});\ntest('DETECT: repeat a call to measure the failure rate (0 < failures < runs means flaky)', async ({ request }) => {\n  let failures = 0; const RUNS = 20;\n  for (let n = 1; n <= RUNS; n++) if ((await get(request, `/flaky/random?seed=1&p=0.3&n=${n}`)).status() === 503) failures++;\n  expect(failures).toBeGreaterThan(0); expect(failures).toBeLessThan(RUNS);\n});\ntest.describe('retries hide flakiness', () => {\n  test.describe.configure({ retries: 2 });\n  test('fails on the first attempt, passes on the retry: the report marks it \"flaky\"', async ({ request }, info) => {\n    const r = await get(request, `/flaky/random?seed=14&p=0.5&n=${info.retry + 1}`);\n    expect(r.status()).toBe(200);\n  });\n});\n", "tests/ui/ui.spec.js": "const { test, expect } = require('@playwright/test');\nconst { FIXED, knownBug } = require('../helpers');\ntest.beforeEach(async ({ page }) => {\n  await page.request.post('/api/v1/test/mode', { data: { fixed: FIXED } });\n  await page.goto('/'); await page.evaluate(f => { localStorage.clear(); if (f) localStorage.setItem('bt_fixed', '1'); }, FIXED); await page.reload();\n});\nconst cards = page => page.locator('#product-grid > div');\nconst addToCart = async (page, name, qty = '1') => {\n  await cards(page).filter({ hasText: name }).getByRole('button', { name: 'Quick View' }).click();\n  await page.locator('#modal-qty').fill(qty); await page.locator('#modal-add-btn').click();\n};\n\ntest('loads 40 products and 0/26 bugs', async ({ page }) => {\n  await expect(cards(page)).toHaveCount(40); await expect(page.locator('#found-bugs-badge')).toHaveText('0/26');\n});\ntest('category filter + search combine', async ({ page }) => {\n  await page.locator('#category-select').selectOption('electronics'); await expect(cards(page)).toHaveCount(11);\n  await page.locator('#search-input').fill('watch'); await page.locator('#search-input').press('Enter');\n  await expect(cards(page)).toHaveCount(1);                                   // only the electronics watch\n});\ntest('add to cart updates counter and subtotal', async ({ page }) => {\n  await addToCart(page, 'Smart Wi-Fi Plug', '2'); await expect(page.locator('#cart-counter')).toHaveText('2');\n  await page.getByRole('button', { name: /toggle cart/i }).click(); await expect(page.locator('#cart-subtotal')).toHaveText('$39.98');\n});\ntest('Escape closes quick view', async ({ page }) => {\n  await cards(page).first().getByRole('button', { name: 'Quick View' }).click();\n  await page.keyboard.press('Escape'); await expect(page.locator('#product-modal')).toBeHidden();\n});\ntest('reset database clears found bugs', async ({ page }) => {\n  await page.getByText('Order Tracking').click(); await expect(page.locator('#found-bugs-badge')).not.toHaveText('0/26');\n  await page.getByText('Reset Database').click(); await expect(page.locator('#found-bugs-badge')).toHaveText('0/26');\n});\ntest('BUG-FUN-04 price slider shows only items <= max', async ({ page }) => {\n  knownBug('BUG-FUN-04 planted: inverted filter');\n  await page.locator('#price-range').fill('50');\n  for (const t of await page.locator('#product-grid span.font-black').allTextContents()) expect(parseFloat(t.slice(1))).toBeLessThanOrEqual(50);\n});\ntest('BUG-FUN-06 out-of-stock item cannot be added', async ({ page }) => {\n  knownBug('BUG-FUN-06 planted');\n  await addToCart(page, 'Minimalist Leather Wrist Watch'); await expect(page.locator('#cart-counter')).toHaveText('0');\n});\ntest('BUG-FUN-02 coupon applies once', async ({ page }) => {\n  knownBug('BUG-FUN-02 planted: stacks');\n  await addToCart(page, 'Wireless Noise-Canceling Headphones'); await page.getByRole('button', { name: /toggle cart/i }).click();\n  for (let i = 0; i < 2; i++) { await page.locator('#coupon-code').fill('FREE100'); await page.getByRole('button', { name: 'Apply' }).click(); }\n  await expect(page.locator('#cart-discount')).toHaveText('-$100.00');\n});\ntest('BUG-SEC-02 double click creates exactly one order', async ({ page }) => {\n  knownBug('BUG-SEC-02 planted');\n  await addToCart(page, 'Smart Wi-Fi Plug'); await page.getByRole('button', { name: /toggle cart/i }).click();\n  await page.getByRole('button', { name: 'Proceed to Checkout' }).click();\n  await page.locator('#cust-name').fill('Test'); await page.locator('#cust-email').fill('t@t.com');\n  await page.locator('#checkout-submit-btn').dblclick(); await page.waitForTimeout(1200);\n  expect(await page.evaluate(() => window.__orders.length)).toBe(1);\n});\ntest('BUG-CON-02 order tracking hits the real API and gets 500', async ({ page }) => {\n  const resp = page.waitForResponse(r => r.url().includes('/api/v1/order-tracking'));\n  await page.getByText('Order Tracking').click(); expect((await resp).status()).toBe(FIXED ? 404 : 500);\n});\n\ntest.describe('QA Control Center tabs', () => {\n  test.beforeEach(async ({ page }) => { await page.getByRole('button', { name: /QA Control Center/ }).click(); });\n  test('Jira board: create ticket and move it', async ({ page }) => {\n    await page.locator('#tab-btn-jira').click();\n    await page.locator('#jira-new-title').fill('Cart total wrong with coupon'); await page.locator('#jira-add').click();\n    await expect(page.locator('#jira-col-todo .jira-card')).toHaveCount(1);\n    await page.getByRole('button', { name: 'Move right' }).click();\n    await expect(page.locator('#jira-col-prog .jira-card')).toHaveCount(1);\n  });\n  test('found bug appears on Jira board', async ({ page }) => {\n    await page.getByText('Order Tracking').click({ force: true }); await page.locator('#tab-btn-jira').click();\n    await expect(page.locator('#jira-board')).toContainText('BUG-CON-02');\n  });\n  test('API tab: run all checks and send failures to Jira', async ({ page }) => {\n    await page.locator('#tab-btn-api').click(); await page.locator('#api-run-all').click();\n    await expect(page.locator('#api-results li')).toHaveCount(17);\n    await expect(page.locator('#api-summary')).toContainText('failed');\n    if (!FIXED) {                                                  // failures exist only in the bug build\n      await page.getByRole('button', { name: '\u2192 Jira' }).first().click();\n      await page.locator('#tab-btn-jira').click(); await expect(page.locator('#jira-board')).toContainText('API-');\n    }\n  });\n  test('API tab: manual login request returns token', async ({ page }) => {\n    await page.locator('#tab-btn-api').click(); await page.getByRole('button', { name: 'Login' }).click(); await page.locator('#api-send').click();\n    await expect(page.locator('#api-resp')).toContainText('200'); await expect(page.locator('#api-token')).not.toHaveText('none');\n  });\n});\n\ntest.describe('Visual bugs are logged by clicking them', () => {\n  test.skip(FIXED, 'visual bugs are fixed in the fixed build');\n  for (const [id, label] of [['BUG-VIS-03', 'unreadable SALE badge'], ['BUG-VIS-02', 'dropdown behind banner'], ['BUG-LOC-02', 'Russian nav button']]) {\n    test(`click on ${label} logs ${id}`, async ({ page }) => {\n      await page.locator(`[data-bug-id=\"${id}\"]`).first().click();\n      await expect(page.locator('#found-bugs-badge')).not.toHaveText('0/26');\n    });\n  }\n});\ntest('fixed-build toggle disables the SALE badge bug', async ({ page }) => {\n  await page.getByRole('button', { name: /QA Control Center/ }).click();\n  await page.locator('#fixed-toggle').check();\n  await expect(page.locator('body')).toHaveClass(/fixed-build/);\n});\n\ntest.describe('Flaky Lab', () => {\n  test.beforeEach(async ({ page }) => { await page.getByRole('button', { name: /QA Control Center/ }).click(); await page.locator('#tab-btn-flaky').click(); });\n  test('random scenario reports flakiness hidden by retries', async ({ page }) => {\n    await page.locator('#flaky-run-random').click(); await expect(page.locator('#flaky-random-out')).toContainText('FLAKY', { timeout: 15000 });\n  });\n  test('polling passes where the naive check fails', async ({ page }) => {\n    await page.locator('#flaky-run-eventual').click(); await expect(page.locator('#flaky-eventual-out')).toContainText('passed after');\n  });\n});\n", "tests/ui/chaos.spec.js": "// Failure simulation with page.route: the UI must stay usable when the API misbehaves.\nconst { test, expect } = require('@playwright/test');\ntest.beforeEach(({ page }) => page.goto('/'));\nconst track = page => page.getByText('Order Tracking').click();\n\ntest('API returns 500: user sees an error message', async ({ page }) => {\n  await page.route('**/api/v1/order-tracking/**', r => r.fulfill({ status: 500, json: { error: 'boom' } }));\n  await track(page); await expect(page.getByText('API Error 500')).toBeVisible();\n});\ntest('network failure: user sees a network error', async ({ page }) => {\n  await page.route('**/api/v1/order-tracking/**', r => r.abort('connectionrefused'));\n  await track(page); await expect(page.getByText(/network error/i)).toBeVisible();\n});\ntest('slow API: page stays responsive while waiting', async ({ page }) => {\n  await page.route('**/api/v1/order-tracking/**', async r => { await new Promise(x => setTimeout(x, 2500)); await r.fulfill({ status: 404, json: { error: 'not found' } }); });\n  await track(page);\n  await page.locator('#search-input').fill('watch'); await page.locator('#search-input').press('Enter');\n  await expect(page.locator('#product-grid > div')).not.toHaveCount(40);\n  await expect(page.getByText('API Error 404')).toBeVisible({ timeout: 8000 });\n});\ntest('API tab shows a non-JSON response instead of crashing', async ({ page }) => {\n  await page.route('**/api/v1/products**', r => r.fulfill({ status: 200, contentType: 'text/html', body: '<html>Bad gateway<\/html>' }));\n  await page.getByRole('button', { name: /QA Control Center/ }).click();\n  await page.locator('#tab-btn-api').click(); await page.locator('#api-send').click();\n  await expect(page.locator('#api-resp')).toContainText('Bad gateway');\n});\n", "tests/ui/a11y.spec.js": "// Accessibility checks with axe-core. Read the attached JSON report: every finding is a candidate defect to triage.\nconst { test, expect } = require('@playwright/test');\nconst AxeBuilder = require('@axe-core/playwright').default;\nconst { FIXED } = require('../helpers');\nconst scan = async page => new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa']).analyze();\ntest.beforeEach(async ({ page }) => { await page.goto('/'); await page.evaluate(f => { localStorage.clear(); if (f) localStorage.setItem('bt_fixed', '1'); }, FIXED); await page.reload(); });\n\ntest('home page has no critical a11y violations', async ({ page }, info) => {\n  const r = await scan(page); await info.attach('axe-report.json', { body: JSON.stringify(r.violations, null, 2), contentType: 'application/json' });\n  expect(r.violations.filter(v => v.impact === 'critical').map(v => v.id)).toEqual([]);\n});\ntest('BUG-VIS-03: axe reports low contrast on the SALE badge', async ({ page }) => {\n  test.skip(FIXED, 'contrast is fixed in the fixed build');\n  expect((await scan(page)).violations.map(v => v.id)).toContain('color-contrast');\n});\ntest('fixed build has no serious or critical violations', async ({ page }) => {\n  test.skip(!FIXED, 'runs only with FIXED=1');\n  expect((await scan(page)).violations.filter(v => ['serious', 'critical'].includes(v.impact)).map(v => v.id)).toEqual([]);\n});\n", "docs/FLAKY_TESTS.md": "# Flaky tests: field guide\n\nA test is **flaky** when it passes and fails on the same code. Retries make the build green but hide the problem, so keep them as a diagnostic, not a fix.\n\n| Cause | Symptom | Fix |\n|---|---|---|\n| Fixed `sleep()` | passes on a fast machine, fails in CI | wait for a condition: `expect.poll`, auto-waiting locators |\n| Asserting too early on async work | 202 or \"processing\" instead of the result | poll with a timeout (lab scenario 2) |\n| Shared state / test order | fails only after another test | reset data in `beforeEach`, no dependencies between tests |\n| Randomness and time | fails \"sometimes\" | seed the random generator, freeze or mock the clock |\n| Unstable network or third parties | 503, timeouts | mock with `page.route`, assert on your own system only |\n\n## How to investigate\n1. Re-run the single test many times: `npx playwright test -g \"name\" --repeat-each=20`.\n2. Look at the trace of a failed run (`trace: 'retain-on-failure'`).\n3. Check the report: tests that passed only on a retry are labelled **flaky**.\n4. Find the cause in the table, fix it, repeat step 1 until 20/20 pass.\n\n## In this project\n- `tests/api/flaky.spec.js`: anti-pattern (expected failure), polling, detection by repetition, and a test that passes only on retry.\n- Flaky Lab tab: run both scenarios and watch \ud83d\udfe9 first try, \ud83d\udfe8 passed on retry, \ud83d\udfe5 failed.\n", ".github/workflows/tests.yml": "name: tests\non: [push, pull_request]\njobs:\n  playwright:\n    runs-on: ubuntu-latest\n    strategy:\n      fail-fast: false\n      matrix:\n        mode: [bugs, fixed]      # \"bugs\": known bugs are expected failures; \"fixed\": everything must pass\n    steps:\n      - uses: actions/checkout@v4\n      - uses: actions/setup-node@v4\n        with: { node-version: 20 }\n      - run: npm install\n      - run: npx playwright install --with-deps chromium\n      - run: npx playwright test\n        env:\n          FIXED: ${{ matrix.mode == 'fixed' && '1' || '0' }}\n      - uses: actions/upload-artifact@v4\n        if: always()\n        with:\n          name: playwright-report-${{ matrix.mode }}\n          path: playwright-report\n"}</script>
+    <script>
+        const DEFAULT_PRODUCTS = [
+            { id: 'prod-01', name: 'Classic Urban Denim Jacket Extra Long Name Text Overflow Display Bug Test', category: 'men', price: 89.99, stock: 12, image: 'https://images.unsplash.com/photo-1576995853123-5a10305d93c0?auto=format&fit=crop&w=500&q=80', description: 'Durable denim jacket.', hasVisualBugTextOverflow: true },
+            { id: 'prod-02', name: 'Women Lightweight Summer Floral Dress', category: 'women', price: 49.99, stock: 8, image: 'https://images.unsplash.com/photo-1572804013309-59a88b7e92f1?auto=format&fit=crop&w=500&q=80', description: 'Breathable cotton floral dress.', sale: true },
+            { id: 'prod-03', name: 'Minimalist Leather Wrist Watch', category: 'accessories', price: 120.00, stock: 0, image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=500&q=80', description: 'Genuine leather watch.' },
+            { id: 'prod-04', name: 'Unisex Premium Fleece Hoodie', category: 'men', price: 15.00, stock: 20, image: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=500&q=80', description: 'Heavyweight organic cotton hoodie.' },
+            { id: 'prod-05', name: 'Athletic Running Sneakers', category: 'accessories', price: 110.00, stock: 5, image: 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?auto=format&fit=crop&w=500&q=80', description: 'High-cushion responsive running sneakers.' },
+            { id: 'prod-06', name: 'Vintage Aviator Sunglasses UV400', category: 'accessories', price: 34.50, stock: 15, image: 'https://images.unsplash.com/photo-1572635196237-14b3f281503f?auto=format&fit=crop&w=500&q=80', description: 'Classic metal frame sunglasses.' },
+            { id: 'prod-07', name: 'Urban Explorer Leather Backpack', category: 'accessories', price: 75.00, stock: 6, image: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=500&q=80', description: 'Spacious waterproof backpack.' },
+            { id: 'prod-08', name: 'Wireless Noise-Canceling Headphones', category: 'electronics', price: 249.99, stock: 10, image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=500&q=80', description: 'Over-ear active noise cancelling headphones.' },
+            { id: 'prod-09', name: 'Smart Fitness Activity Tracker Watch', category: 'electronics', price: 79.99, stock: 14, image: 'https://images.unsplash.com/photo-1575311373937-040b8e1fd5b6?auto=format&fit=crop&w=500&q=80', description: 'Waterproof health and sleep monitor watch.' },
+            { id: 'prod-10', name: 'Portable Ultra-Slim Power Bank 10000mAh', category: 'electronics', price: 39.99, stock: 25, image: 'https://images.unsplash.com/photo-1609592424154-d2c67b2d5639?auto=format&fit=crop&w=500&q=80', description: 'Fast charging high capacity power bank.' },
+            { id: 'prod-11', name: 'Professional Mechanical Gaming Keyboard', category: 'electronics', price: 99.00, stock: 7, image: 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?auto=format&fit=crop&w=500&q=80', description: 'RGB backlit tactile mechanical switches keyboard.' },
+            { id: 'prod-12', name: 'Ergonomic Wireless Optical Mouse', category: 'electronics', price: 45.00, stock: 18, image: 'https://images.unsplash.com/photo-1615663245857-ac93bb7c39e7?auto=format&fit=crop&w=500&q=80', description: 'Comfortable wireless mouse with adjustable DPI.' },
+            { id: 'prod-13', name: 'Slim Fit Business Formal Blazer', category: 'men', price: 145.00, stock: 4, image: 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=500&q=80', description: 'Tailored suit jacket for formal business occasions.' },
+            { id: 'prod-14', name: 'Casual Slim Fit Chino Pants', category: 'men', price: 55.00, stock: 16, image: 'https://images.unsplash.com/photo-1624378439575-d8705ad7ae80?auto=format&fit=crop&w=500&q=80', description: 'Stretch cotton trousers for everyday casual wear.' },
+            { id: 'prod-15', name: 'Elegant Evening Silk Wrap Dress', category: 'women', price: 125.00, stock: 5, image: 'https://images.unsplash.com/photo-1539109136881-3be0616acf4b?auto=format&fit=crop&w=500&q=80', description: 'Luxurious silk dress for parties and events.' },
+            { id: 'prod-16', name: 'High-Waisted Skinny Stretch Jeans', category: 'women', price: 68.00, stock: 11, image: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?auto=format&fit=crop&w=500&q=80', description: 'Comfortable high-waisted denim jeans.' },
+            { id: 'prod-17', name: 'Cozy Oversized Knit Wool Sweater', category: 'women', price: 62.00, stock: 9, image: 'https://images.unsplash.com/photo-1620799140408-edc6dcb6d633?auto=format&fit=crop&w=500&q=80', description: 'Warm wool blend sweater for winter seasons.' },
+            { id: 'prod-18', name: 'Pure Cashmere Winter Scarf', category: 'accessories', price: 45.00, stock: 13, image: 'https://images.unsplash.com/photo-1608256246200-53e635b5b65f?auto=format&fit=crop&w=500&q=80', description: 'Soft and luxurious warm winter scarf.' },
+            { id: 'prod-19', name: 'Genuine Leather RFID Blocking Wallet', category: 'accessories', price: 35.00, stock: 22, image: 'https://images.unsplash.com/photo-1627123424574-724758594e93?auto=format&fit=crop&w=500&q=80', description: 'Compact bifold wallet with secure card protection.' },
+            { id: 'prod-20', name: 'True Wireless Stereo Bluetooth Earbuds', category: 'electronics', price: 89.00, stock: 0, image: 'https://images.unsplash.com/photo-1590658268037-6bf12165a8df?auto=format&fit=crop&w=500&q=80', description: 'In-ear wireless earbuds with charging case.' },
+            { id: 'prod-21', name: 'Tactical Waterproof Watch', category: 'accessories', price: 150.00, stock: 4, image: 'https://images.unsplash.com/photo-1524805444758-089113d48a6d?auto=format&fit=crop&w=500&q=80', description: 'Rugged tactical watch.' },
+            { id: 'prod-22', name: 'Leather Messenger Bag', category: 'accessories', price: 95.00, stock: 10, image: 'https://images.unsplash.com/photo-1548036328-c9fa89d128fa?auto=format&fit=crop&w=500&q=80', description: 'Classic messenger bag.' },
+            { id: 'prod-23', name: 'Silk Necktie Classic Navy', category: 'accessories', price: 25.00, stock: 30, image: 'https://images.unsplash.com/photo-1589756832629-485214878f7f?auto=format&fit=crop&w=500&q=80', description: 'Pure silk necktie.' },
+            { id: 'prod-24', name: 'Polarized Sports Sunglasses', category: 'accessories', price: 55.00, stock: 12, image: 'https://images.unsplash.com/photo-1511499767150-a48a237f0083?auto=format&fit=crop&w=500&q=80', description: 'Sports eyewear.' },
+            { id: 'prod-25', name: 'Sterling Silver Bracelet', category: 'accessories', price: 85.00, stock: 0, image: 'https://images.unsplash.com/photo-1611591478571-11d2795f7737?auto=format&fit=crop&w=500&q=80', description: 'Elegant silver bracelet.' },
+            { id: 'prod-26', name: 'Oversized Graphic Cotton T-Shirt', category: 'men', price: 28.00, stock: 45, image: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=500&q=80', description: 'Comfortable casual t-shirt.' },
+            { id: 'prod-27', name: 'Waterproof Ski Jacket', category: 'men', price: 220.00, stock: 7, image: 'https://images.unsplash.com/photo-1548883354-7622d03aca27?auto=format&fit=crop&w=500&q=80', description: 'Winter ski jacket.' },
+            { id: 'prod-28', name: 'Thermal Running Gloves', category: 'accessories', price: 22.00, stock: 25, image: 'https://images.unsplash.com/photo-1544816155-12df9643f363?auto=format&fit=crop&w=500&q=80', description: 'Warm athletic gloves.' },
+            { id: 'prod-29', name: 'Wool Fedora Hat', category: 'accessories', price: 42.00, stock: 8, image: 'https://images.unsplash.com/photo-1514327605112-78d49280d887?auto=format&fit=crop&w=500&q=80', description: 'Stylish winter hat.' },
+            { id: 'prod-30', name: 'Canvas Travel Duffel Bag', category: 'accessories', price: 88.00, stock: 14, image: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?auto=format&fit=crop&w=500&q=80', description: 'Large capacity duffel bag.' },
+            { id: 'prod-31', name: 'Smart Home Hub Speaker', category: 'electronics', price: 129.00, stock: 9, image: 'https://images.unsplash.com/photo-1543512214-318c7553f230?auto=format&fit=crop&w=500&q=80', description: 'Voice controlled speaker.' },
+            { id: 'prod-32', name: '4K Ultra HD Action Camera', category: 'electronics', price: 199.00, stock: 5, image: 'https://images.unsplash.com/photo-1526170375885-4d8ecf77b99f?auto=format&fit=crop&w=500&q=80', description: 'Waterproof sports camera.' },
+            { id: 'prod-33', name: 'USB-C Multiport Hub Adapter', category: 'electronics', price: 35.00, stock: 40, image: 'https://images.unsplash.com/photo-1544652478-6553e6e6a218?auto=format&fit=crop&w=500&q=80', description: 'Docking station adapter.' },
+            { id: 'prod-34', name: 'LED Desk Lamp with Wireless Charger', category: 'electronics', price: 49.00, stock: 15, image: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=500&q=80', description: 'Modern office lamp.' },
+            { id: 'prod-35', name: 'Smart Wi-Fi Plug Socket', category: 'electronics', price: 19.99, stock: 50, image: 'https://images.unsplash.com/photo-1558089687-f282ffcbc126?auto=format&fit=crop&w=500&q=80', description: 'Smart home electrical plug.' },
+            { id: 'prod-36', name: 'Plissé High-Waist Skirt', category: 'women', price: 58.00, stock: 12, image: 'https://images.unsplash.com/photo-1583496661160-fb5886a0aaaa?auto=format&fit=crop&w=500&q=80', description: 'Elegant pleated skirt.' },
+            { id: 'prod-37', name: 'Cropped Knit Cardigan', category: 'women', price: 48.00, stock: 18, image: 'https://images.unsplash.com/photo-1434389677669-e08b4cac3105?auto=format&fit=crop&w=500&q=80', description: 'Soft knit cardigan.' },
+            { id: 'prod-38', name: 'Satin Peplum Blouse', category: 'women', price: 65.00, stock: 0, image: 'https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?auto=format&fit=crop&w=500&q=80', description: 'Stylish party blouse.' },
+            { id: 'prod-39', name: 'Faux Leather Biker Jacket', category: 'women', price: 135.00, stock: 6, image: 'https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=500&q=80', description: 'Edgy biker jacket.' },
+            { id: 'prod-40', name: 'Velvet Evening Clutch', category: 'accessories', price: 40.00, stock: 11, image: 'https://images.unsplash.com/photo-1566150905458-1bf1fc113f0d?auto=format&fit=crop&w=500&q=80', description: 'Evening party clutch.' }
+        ];
+
+        const EMBEDDED_BUGS = [
+            { id: 'BUG-VIS-01', title: 'Product Name Text Overflow', category: 'Visual', hint: 'Look at Denim Jacket title extending outside card box.', found: false },
+            { id: 'BUG-VIS-02', title: 'Dropdown Z-Index Behind Banner', category: 'Visual', hint: 'Expand category dropdown in filter bar.', found: false },
+            { id: 'BUG-VIS-03', title: 'Unreadable Yellow SALE Badge', category: 'Visual', hint: 'Check SALE badge on Floral Dress.', found: false },
+            { id: 'BUG-FUN-01', title: 'Negative / Fractional Cart Quantities', category: 'Functional', hint: 'Type -5 or 0.5 in modal quantity box.', found: false },
+            { id: 'BUG-FUN-02', title: 'Coupon FREE100 Stacks Infinitely', category: 'Functional', hint: 'Apply FREE100 coupon code repeatedly.', found: false },
+            { id: 'BUG-FUN-03', title: 'Size Selection Mismatch (L -> XS)', category: 'Functional', hint: 'Select size L in modal view.', found: false },
+            { id: 'BUG-FUN-04', title: 'Price Slider Inverted Filtering', category: 'Functional', hint: 'Slide Max Price bar to $50.', found: false },
+            { id: 'BUG-FUN-05', title: 'Low-to-High Price Sorts as Strings', category: 'Functional', hint: 'Select Price: Low to High in sort menu.', found: false },
+            { id: 'BUG-FUN-06', title: 'Out-Of-Stock Item Purchase Bypass', category: 'Functional', hint: 'Add Wrist Watch (0 Stock) to bag.', found: false },
+            { id: 'BUG-VAL-01', title: 'Newsletter Blank / Payload Accept', category: 'Validation', hint: 'Submit footer newsletter with empty input.', found: false },
+            { id: 'BUG-VAL-02', title: 'Checkout Email Missing Top-Level Domain', category: 'Validation', hint: 'Type test@domain in email field.', found: false },
+            { id: 'BUG-VAL-03', title: 'Phone Field Clears on Focus Lost', category: 'Validation', hint: 'Type phone number and click away.', found: false },
+            { id: 'BUG-VAL-04', title: 'Expired Card Year Accepted (01/2000)', category: 'Validation', hint: 'Enter 01/2000 in credit card exp date.', found: false },
+            { id: 'BUG-AUT-01', title: 'Login Accepts SQL Injection String', category: 'Authentication', hint: "Enter admin' OR '1'='1 in login.", found: false },
+            { id: 'BUG-AUT-02', title: 'Remember Me Stores Plaintext Credentials', category: 'Authentication', hint: 'Check LocalStorage key bt_remembered_creds.', found: false },
+            { id: 'BUG-AUT-03', title: 'Registration Accepts Short Password "123"', category: 'Authentication', hint: 'Type 123 into registration password field.', found: false },
+            { id: 'BUG-AUT-04', title: 'Inverted Password Match Check', category: 'Authentication', hint: 'Type differing passwords during registration.', found: false },
+            { id: 'BUG-AUT-05', title: 'Profile Avatar Accepts Any File Format', category: 'Authentication', hint: 'Upload a text file into profile avatar.', found: false },
+            { id: 'BUG-AUT-06', title: 'Email Spaces Turn Email into Undefined', category: 'Authentication', hint: 'Save email with trailing spaces in profile.', found: false },
+            { id: 'BUG-AUT-07', title: 'Logout Fails to Clear Cart/State', category: 'Authentication', hint: 'Log out and observe cart contents remain.', found: false },
+            { id: 'BUG-CON-01', title: 'Clearance Nav Link Triggers JS Exception', category: 'Security', hint: 'Click Clearance link in navigation.', found: false },
+            { id: 'BUG-CON-02', title: 'Order Tracking Link Logs 500 API Error', category: 'Security', hint: 'Click Order Tracking in footer.', found: false },
+            { id: 'BUG-LOC-01', title: 'Currency Switch Changes Symbol Only', category: 'Localization', hint: 'Switch currency to EUR or GBP.', found: false },
+            { id: 'BUG-LOC-02', title: 'Hardcoded Russian Button in Nav', category: 'Localization', hint: 'Observe Russian text link in main nav.', found: false },
+            { id: 'BUG-SEC-01', title: 'Unescaped Search Input XSS Payload', category: 'Security', hint: 'Type <script> into search bar.', found: false },
+            { id: 'BUG-SEC-02', title: 'Rapid Double Click Places Duplicate Orders', category: 'Security', hint: 'Rapidly double click Checkout submit.', found: false }
+        ];
+
+        let products = load('bt_products', DEFAULT_PRODUCTS.map(p => ({ ...p })));
+        let cart = load('bt_cart', []);
+        let qaBugs = syncBugs(load('bt_qa_bugs', null));
+        let customReports = load('bt_custom_reports', []);
+        let currentUser = load('bt_user', { name: 'QA Trainee', email: 'trainee@buggythreads.com', loggedIn: false });
+        let currentCurrency = 'USD';
+        let activeModalProduct = null;
+        let selectedSize = 'M';
+
+        function renderProducts(itemsToRender = products) {
+            const grid = document.getElementById('product-grid');
+            grid.innerHTML = '';
+
+            itemsToRender.forEach(prod => {
+                const card = document.createElement('div');
+                card.className = 'bg-slate-800/80 rounded-2xl border border-slate-700 overflow-hidden shadow-lg hover:shadow-indigo-500/10 transition flex flex-col relative';
+                
+                const titleStyle = prod.hasVisualBugTextOverflow 
+                    ? 'whitespace-nowrap overflow-visible text-indigo-400 font-extrabold text-base' 
+                    : 'font-bold text-white text-sm line-clamp-1';
+
+                const bugTag = prod.hasVisualBugTextOverflow ? 'data-bug-id="BUG-VIS-01"' : '';
+
+                card.innerHTML = `
+                    <div class="relative bg-slate-950 aspect-square overflow-hidden flex items-center justify-center p-4">
+                        <img src="${prod.image}" alt="${esc(prod.name)}" class="object-contain h-full w-full hover:scale-105 transition-transform duration-300">
+                        ${prod.sale ? `<span class="buggy-sale-tag absolute top-2 left-2 text-[10px] font-black px-2 py-0.5 rounded shadow" data-bug-id="BUG-VIS-03">SALE</span>` : ''}
+                        ${prod.stock === 0 ? `<span class="bg-rose-600 text-white absolute top-2 right-2 text-[10px] font-black px-2 py-0.5 rounded">OUT OF STOCK</span>` : ''}
+                    </div>
+                    <div class="p-4 flex-1 flex flex-col justify-between">
+                        <div>
+                            <span class="text-[10px] font-bold text-indigo-400 uppercase tracking-wider">${esc(prod.category)}</span>
+                            <div ${bugTag} class="my-1"><h3 class="${titleStyle}">${esc(prod.name)}</h3></div>
+                            <p class="text-xs text-slate-400 line-clamp-2 mt-1">${esc(prod.description)}</p>
+                        </div>
+                        <div class="mt-4 flex items-center justify-between border-t border-slate-700/60 pt-3">
+                            <div>
+                                <span class="text-xs text-slate-500 block font-medium">Price</span>
+                                <span class="text-base font-black text-white">${formatCurrency(prod.price)}</span>
+                            </div>
+                            <button onclick="openProductModal('${prod.id}')" class="bg-indigo-600/20 hover:bg-indigo-600/40 text-indigo-300 border border-indigo-500/30 px-3 py-1.5 rounded-xl text-xs font-bold transition">
+                                Quick View
+                            </button>
+                        </div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function renderCart() {
+            const list = document.getElementById('cart-items-list');
+            const counter = document.getElementById('cart-counter');
+            list.innerHTML = '';
+
+            let subtotal = 0;
+            let itemCount = 0;
+
+            if (cart.length === 0) {
+                list.innerHTML = `<div class="text-center py-12 text-slate-500 text-xs">Your shopping bag is empty.</div>`;
+            } else {
+                cart.forEach((item, idx) => {
+                    subtotal += item.price * item.qty;
+                    itemCount += item.qty;
+
+                    const itemEl = document.createElement('div');
+                    itemEl.className = 'py-3 flex items-center space-x-3';
+                    itemEl.innerHTML = `
+                        <img src="${item.image}" class="w-12 h-12 rounded-lg object-cover bg-slate-950">
+                        <div class="flex-1">
+                            <h4 class="font-bold text-xs text-slate-200 leading-tight">${esc(item.name)}</h4>
+                            <span class="text-[10px] text-slate-400">Size: ${item.size}</span>
+                            <div class="text-xs font-black text-indigo-400 mt-0.5">${formatCurrency(item.price)} x ${item.qty}</div>
+                        </div>
+                        <button onclick="removeFromCart(${idx})" class="text-slate-500 hover:text-rose-400 text-xs p-1"><i class="fa-solid fa-trash"></i></button>
+                    `;
+                    list.appendChild(itemEl);
+                });
+            }
+
+            counter.innerText = itemCount;
+            const discount = window.appliedDiscount || 0;
+            const tax = (subtotal - discount) * 0.08;
+            const total = subtotal - discount + (tax > 0 ? tax : 0);
+
+            document.getElementById('cart-subtotal').innerText = formatCurrency(subtotal);
+            document.getElementById('cart-discount').innerText = `-${formatCurrency(discount)}`;
+            document.getElementById('cart-tax').innerText = formatCurrency(tax > 0 ? tax : 0);
+            document.getElementById('cart-total').innerText = formatCurrency(total);
+
+            localStorage.setItem('bt_cart', JSON.stringify(cart));
+        }
+
+        function renderQABugChecklist() {
+            const container = document.getElementById('bug-checklist-container');
+            container.innerHTML = '';
+
+            let foundCount = qaBugs.filter(b => b.found).length;
+            document.getElementById('qa-found-count').innerText = foundCount;
+            document.getElementById('found-bugs-badge').innerText = `${foundCount}/${qaBugs.length}`;
+
+            qaBugs.forEach(bug => {
+                const bugCard = document.createElement('div');
+                bugCard.className = `p-3 rounded-xl border text-xs transition ${bug.found ? 'bg-emerald-950/30 border-emerald-700/50' : 'bg-slate-900 border-slate-800'}`;
+                bugCard.innerHTML = `
+                    <div class="flex items-start justify-between gap-2">
+                        <div class="flex items-start space-x-2">
+                            <input type="checkbox" ${bug.found ? 'checked' : ''} onchange="toggleBugFound('${bug.id}')" class="mt-0.5 rounded border-slate-700 bg-slate-950 text-indigo-500">
+                            <div>
+                                <div class="font-bold text-slate-200 ${bug.found ? 'line-through text-slate-500' : ''}">${bug.title}</div>
+                                <span class="text-[9px] bg-slate-800 text-indigo-300 font-semibold px-1.5 py-0.5 rounded uppercase">${bug.category}</span>
+                            </div>
+                        </div>
+                        <button onclick="toggleHint('${bug.id}')" class="text-amber-400 hover:text-amber-300 text-[11px] font-semibold whitespace-nowrap"><i class="fa-solid fa-lightbulb"></i> Hint</button>
+                    </div>
+                    <div id="hint-${bug.id}" class="hidden mt-2 p-2 bg-slate-950 rounded-lg border border-amber-500/20 text-amber-300 text-[11px]">${bug.hint}</div>
+                `;
+                container.appendChild(bugCard);
+            });
+        }
+
+        function renderSavedReports() {
+            const container = document.getElementById('saved-reports-container');
+            container.innerHTML = '';
+            if (customReports.length === 0) {
+                container.innerHTML = `<div class="text-center text-slate-500 py-6">No evaluated bug reports saved yet.</div>`;
+                return;
+            }
+            customReports.forEach(rpt => {
+                const el = document.createElement('div');
+                el.className = 'p-3 bg-slate-900 rounded-xl border border-slate-800 space-y-1.5';
+                el.innerHTML = `
+                    <div class="flex justify-between items-center font-bold text-white">
+                        <span>${esc(rpt.title)}</span>
+                        <span class="text-[10px] px-2 py-0.5 rounded-full ${rpt.evaluation.score >= 70 ? 'bg-emerald-900 text-emerald-200' : 'bg-rose-900 text-rose-200'}">Score: ${rpt.evaluation.score}/100</span>
+                    </div>
+                    <div class="text-[10px] text-slate-400">Category: ${rpt.category} | Severity: ${rpt.severity}</div>
+                    <div class="text-[11px] text-slate-300 bg-slate-950 p-2 rounded border border-slate-800/80 font-mono">${rpt.evaluation.feedback.join(' ')}</div>
+                `;
+                container.appendChild(el);
+            });
+        }
+
+        function adjustModalQty(delta) {
+            const qtyInput = document.getElementById('modal-qty');
+            let currentVal = parseFloat(qtyInput.value) || 0;
+            qtyInput.value = currentVal + delta;
+            if (parseFloat(qtyInput.value) < 0 || parseFloat(qtyInput.value) % 1 !== 0) {
+                triggerBugFound('BUG-FUN-01');
+            }
+        }
+
+        function applyCoupon() {
+            const code = document.getElementById('coupon-code').value.trim().toUpperCase();
+            const msg = document.getElementById('coupon-msg');
+            if (code === 'FREE100') {
+                if (!window.appliedDiscount) window.appliedDiscount = 0;
+                window.appliedDiscount += 100;
+                msg.innerText = `Coupon FREE100 Applied! Total Discount: $${window.appliedDiscount}`;
+                renderCart();
+                triggerBugFound('BUG-FUN-02');
+            } else {
+                msg.innerText = 'Invalid Coupon Code!';
+            }
+        }
+
+        function selectSize(size) {
+            selectedSize = size;
+            document.querySelectorAll('.size-btn').forEach(btn => {
+                btn.classList.remove('bg-indigo-600', 'text-white');
+                btn.classList.add('bg-slate-800', 'text-slate-300');
+            });
+            event.target.classList.add('bg-indigo-600', 'text-white');
+            if (size === 'L') {
+                window.buggySizeOverride = 'XS';
+                triggerBugFound('BUG-FUN-03');
+            } else {
+                window.buggySizeOverride = null;
+            }
+        }
+
+        function updatePriceFilter(val) {
+            document.getElementById('price-range-val').innerText = formatCurrency(val);
+            const filtered = products.filter(p => p.price >= val);
+            renderProducts(filtered);
+            triggerBugFound('BUG-FUN-04');
+        }
+
+        function handleSortChange(sortKey) {
+            let sorted = [...products];
+            if (sortKey === 'low-high') {
+                sorted.sort((a, b) => a.price.toString().localeCompare(b.price.toString()));
+                triggerBugFound('BUG-FUN-05');
+            } else if (sortKey === 'high-low') {
+                sorted.sort((a, b) => b.price - a.price);
+            } else if (sortKey === 'name') {
+                sorted.sort((a, b) => a.name.localeCompare(b.name));
+            }
+            renderProducts(sorted);
+        }
+
+        function executeAddToCartFromModal() {
+            if (!activeModalProduct) return;
+            if (activeModalProduct.stock === 0) {
+                showToast('🚨 Out of Stock Item Purchased!', 'rose');
+                triggerBugFound('BUG-FUN-06');
+            }
+            const qty = parseFloat(document.getElementById('modal-qty').value);
+            const size = window.buggySizeOverride || selectedSize;
+            cart.push({ id: activeModalProduct.id, name: activeModalProduct.name, price: activeModalProduct.price, image: activeModalProduct.image, size: size, qty: qty });
+            renderCart();
+            closeProductModal();
+            showToast(`Added ${activeModalProduct.name} to cart!`, 'indigo');
+        }
+
+        function handleNewsletterSubmit() {
+            const email = document.getElementById('newsletter-email').value;
+            document.getElementById('newsletter-msg').innerHTML = `<span class="text-emerald-400">Subscribed: ${esc(email)}</span>`;
+            triggerBugFound('BUG-VAL-01');
+        }
+
+        function handlePhoneBlur(input) {
+            if (input.value.length > 0) {
+                input.value = '';
+                showToast('⚠️ Phone input field wiped itself on blur!', 'rose');
+                triggerBugFound('BUG-VAL-03');
+            }
+        }
+
+        function handleOrderSubmit(e) {
+            e.preventDefault();
+            const email = document.getElementById('cust-email').value;
+            const cardExp = document.getElementById('card-exp').value;
+            if (email.includes('@') && !email.includes('.')) triggerBugFound('BUG-VAL-02');
+            if (cardExp.includes('2000')) triggerBugFound('BUG-VAL-04');
+            showToast('🎉 Order Submitted Successfully!', 'emerald');
+            cart = [];
+            window.appliedDiscount = 0;
+            renderCart();
+            closeCheckoutModal();
+        }
+
+        function handleLoginSubmit(e) {
+            e.preventDefault();
+            const user = document.getElementById('login-user').value;
+            const pass = document.getElementById('login-pass').value;
+            const remember = document.getElementById('login-remember').checked;
+            if (user.includes("' OR '1'='1") || user.includes("admin")) {
+                currentUser = { name: 'Admin User', email: 'admin@buggythreads.com', loggedIn: true };
+                localStorage.setItem('bt_user', JSON.stringify(currentUser));
+                triggerBugFound('BUG-AUT-01');
+                showToast('🔓 Logged in via SQL Injection bypass!', 'amber');
+            } else {
+                currentUser = { name: user || 'QA Trainee', email: 'trainee@example.com', loggedIn: true };
+                localStorage.setItem('bt_user', JSON.stringify(currentUser));
+            }
+            if (remember) {
+                localStorage.setItem('bt_remembered_creds', JSON.stringify({ user, pass }));
+                triggerBugFound('BUG-AUT-02');
+            }
+            updateUserUI();
+            closeAuthModal();
+        }
+
+        function handleRegisterSubmit(e) {
+            e.preventDefault();
+            const pass = document.getElementById('reg-pass').value;
+            const confirm = document.getElementById('reg-pass-confirm').value;
+            if (pass === '123') triggerBugFound('BUG-AUT-03');
+            if (pass === confirm && pass.length > 0) {
+                triggerBugFound('BUG-AUT-04');
+                showToast('⚠️ Passwords match but system claims they differ!', 'rose');
+                return;
+            }
+            currentUser = { name: document.getElementById('reg-name').value, email: document.getElementById('reg-email').value, loggedIn: true };
+            localStorage.setItem('bt_user', JSON.stringify(currentUser));
+            updateUserUI();
+            closeAuthModal();
+            showToast('Account registered!', 'emerald');
+        }
+
+        function handleAvatarUpload(input) {
+            const file = input.files[0];
+            if (file && !file.type.startsWith('image/')) {
+                triggerBugFound('BUG-AUT-05');
+                showToast(`⚠️ Non-image file loaded: ${file.name}`, 'amber');
+            }
+        }
+
+        function handleProfileSave(e) {
+            e.preventDefault();
+            let emailVal = document.getElementById('profile-email-input').value;
+            if (emailVal.includes(' ')) {
+                emailVal = 'undefined@domain.com';
+                triggerBugFound('BUG-AUT-06');
+                showToast('⚠️ Email corrupted to undefined@domain.com!', 'rose');
+            }
+            currentUser.email = emailVal;
+            currentUser.name = document.getElementById('profile-name-input').value;
+            localStorage.setItem('bt_user', JSON.stringify(currentUser));
+            updateUserUI();
+            closeProfileModal();
+        }
+
+        function handleLogout() {
+            currentUser = { name: 'QA Trainee', email: 'trainee@buggythreads.com', loggedIn: false };
+            localStorage.setItem('bt_user', JSON.stringify(currentUser));
+            triggerBugFound('BUG-AUT-07');
+            showToast('Logged out, but cart items remained intact!', 'amber');
+            updateUserUI();
+            closeProfileModal();
+        }
+
+        function performSearch() {
+            const query = document.getElementById('search-input').value;
+            if (query.includes('<script>') || query.includes('alert')) {
+                triggerBugFound('BUG-SEC-01');
+                showToast('🚨 Reflected XSS Payload Executed in search sandbox!', 'rose');
+            }
+            const filtered = products.filter(p => p.name.toLowerCase().includes(query.toLowerCase()));
+            renderProducts(filtered);
+        }
+
+        function triggerBrokenCategory(e) {
+            e.preventDefault();
+            triggerBugFound('BUG-CON-01');
+            throw new Error('Uncaught TypeError: Cannot read properties of undefined at triggerBrokenCategory');
+        }
+
+        function triggerConsoleErrorLink(e) {
+            e.preventDefault();
+            triggerBugFound('BUG-CON-02');
+            console.error('API Error 500: /api/v1/order-tracking returned Internal Server Error');
+            showToast('Console 500 API Error Logged!', 'rose');
+        }
+
+        function handleCurrencyChange(cur) {
+            currentCurrency = cur;
+            triggerBugFound('BUG-LOC-01');
+            showToast(`Currency changed to ${cur}. (Prices did not mathematically convert!)`, 'amber');
+            renderProducts();
+            renderCart();
+        }
+
+        function evaluateAndSaveBugReport(e) {
+            e.preventDefault();
+            const title = document.getElementById('eval-title').value;
+            const severity = document.getElementById('eval-severity').value;
+            const category = document.getElementById('eval-category').value;
+            const steps = document.getElementById('eval-steps').value;
+            const expected = document.getElementById('eval-expected').value;
+            const actual = document.getElementById('eval-actual').value;
+
+            let score = 100;
+            let feedback = [];
+            if (!steps.includes('1.') || !steps.includes('2.')) {
+                score -= 20;
+                feedback.push('❌ Steps to reproduce should use clear numbered lists.');
+            } else {
+                feedback.push('✅ Steps to reproduce use clear numbered lists.');
+            }
+            if (title.length < 15) {
+                score -= 15;
+                feedback.push('❌ Bug title is too brief.');
+            } else {
+                feedback.push('✅ Bug title is clear and descriptive.');
+            }
+
+            const matchedBug = qaBugs.find(b => title.toLowerCase().includes(b.title.toLowerCase().split(' ')[0]) || steps.toLowerCase().includes(b.id.toLowerCase()));
+            if (matchedBug) {
+                feedback.push(`🎯 Matched Known Embedded Bug: [${matchedBug.id}] ${matchedBug.title}!`);
+                triggerBugFound(matchedBug.id);
+            }
+
+            const card = document.getElementById('eval-result-card');
+            const badge = document.getElementById('eval-score-badge');
+            const feedbackBox = document.getElementById('eval-feedback-text');
+
+            card.classList.remove('hidden');
+            badge.innerText = `Quality Score: ${score}/100`;
+            badge.className = `px-3 py-1 rounded-full text-xs font-black ${score >= 70 ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'}`;
+            feedbackBox.innerHTML = feedback.map(f => `<p>${f}</p>`).join('');
+
+            customReports.push({ title, severity, category, steps, expected, actual, evaluation: { score, feedback }, timestamp: new Date().toISOString() });
+            localStorage.setItem('bt_custom_reports', JSON.stringify(customReports));
+            renderSavedReports();
+        }
+
+        // WAREHOUSE SQL LAB LOGIC
+        function openWarehouseModal() { document.getElementById('warehouse-modal').classList.remove('hidden'); setSQLQuery('SELECT * FROM products'); executeSQLQuery(); }
+        function closeWarehouseModal() { document.getElementById('warehouse-modal').classList.add('hidden'); }
+        function setSQLQuery(q) { document.getElementById('sql-query-input').value = q; }
+        function executeSQLQuery() {
+            const query = document.getElementById('sql-query-input').value.trim();
+            const resultsContainer = document.getElementById('sql-results-container');
+            if (!query.toLowerCase().startsWith('select')) {
+                resultsContainer.innerHTML = `<p class="text-rose-400 font-mono text-xs">⚠️ Only SELECT queries are supported.</p>`;
+                return;
+            }
+            let resultData = [...products];
+            if (query.toLowerCase().includes('where price >')) {
+                const match = query.match(/price\s*>\s*([0-9.]+)/i);
+                if (match) resultData = resultData.filter(p => p.price > parseFloat(match[1]));
+            } else if (query.toLowerCase().includes('where stock = 0')) {
+                resultData = resultData.filter(p => p.stock === 0);
+            } else if (query.toLowerCase().includes('order by price desc')) {
+                resultData.sort((a, b) => b.price - a.price);
+            }
+            let html = `<table class="w-full text-left font-mono text-xs text-slate-200 border-collapse"><tr class="border-b border-slate-800 text-emerald-400"><th class="p-2">ID</th><th class="p-2">NAME</th><th class="p-2">CATEGORY</th><th class="p-2">PRICE</th><th class="p-2">STOCK</th></tr>`;
+            resultData.forEach(r => {
+                html += `<tr class="border-b border-slate-800/60"><td class="p-2">${r.id}</td><td class="p-2">${r.name}</td><td class="p-2">${r.category}</td><td class="p-2">$${r.price.toFixed(2)}</td><td class="p-2">${r.stock}</td></tr>`;
+            });
+            html += `</table>`;
+            resultsContainer.innerHTML = html;
+        }
+
+        function formatCurrency(val) {
+            const symbol = currentCurrency === 'EUR' ? '€' : currentCurrency === 'GBP' ? '£' : '$';
+            return `${symbol}${parseFloat(val).toFixed(2)}`;
+        }
+
+        function openProductModal(id) {
+            activeModalProduct = products.find(p => p.id === id);
+            if (!activeModalProduct) return;
+            document.getElementById('modal-img').src = activeModalProduct.image;
+            document.getElementById('modal-category').innerText = activeModalProduct.category;
+            document.getElementById('modal-title').innerText = activeModalProduct.name;
+            document.getElementById('modal-price').innerText = formatCurrency(activeModalProduct.price);
+            document.getElementById('modal-desc').innerText = activeModalProduct.description;
+            document.getElementById('modal-qty').value = 1;
+            const sizeContainer = document.getElementById('modal-sizes');
+            sizeContainer.innerHTML = ['S', 'M', 'L', 'XL'].map(s => `
+                <button onclick="selectSize('${s}')" class="size-btn border px-3 py-1 rounded-lg text-xs font-bold ${s === 'M' ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-300'}">${s}</button>
+            `).join('');
+            document.getElementById('product-modal').classList.remove('hidden');
+        }
+
+        function closeProductModal() { document.getElementById('product-modal').classList.add('hidden'); }
+        function toggleCartModal() { document.getElementById('cart-drawer').classList.toggle('hidden'); }
+        function proceedToCheckout() { toggleCartModal(); document.getElementById('checkout-modal').classList.remove('hidden'); }
+        function closeCheckoutModal() { document.getElementById('checkout-modal').classList.add('hidden'); }
+        function openAuthModal() { document.getElementById('auth-modal').classList.remove('hidden'); }
+        function closeAuthModal() { document.getElementById('auth-modal').classList.add('hidden'); }
+        function openProfileModal() { document.getElementById('profile-modal').classList.remove('hidden'); }
+        function closeProfileModal() { document.getElementById('profile-modal').classList.add('hidden'); }
+        function toggleQADrawer() { document.getElementById('qa-drawer').classList.toggle('translate-x-full'); }
+        function toggleQAOverlay() { document.body.classList.toggle('qa-overlay-active'); }
+
+        function switchAuthTab(tab) {
+            if (tab === 'login') {
+                document.getElementById('login-form').classList.remove('hidden');
+                document.getElementById('register-form').classList.add('hidden');
+            } else {
+                document.getElementById('login-form').classList.add('hidden');
+                document.getElementById('register-form').classList.remove('hidden');
+            }
+        }
+
+        function switchQATab(tab) {
+            document.getElementById('qa-tab-checklist').classList.add('hidden');
+            document.getElementById('qa-tab-evaluator').classList.add('hidden');
+            document.getElementById('qa-tab-logs').classList.add('hidden');
+            document.getElementById(`qa-tab-${tab}`).classList.remove('hidden');
+        }
+
+        function toggleBugFound(bugId) {
+            const bug = qaBugs.find(b => b.id === bugId);
+            if (bug) {
+                bug.found = !bug.found;
+                localStorage.setItem('bt_qa_bugs', JSON.stringify(qaBugs));
+                renderQABugChecklist();
+            }
+        }
+
+        function triggerBugFound(bugId) {
+            const bug = qaBugs.find(b => b.id === bugId);
+            if (bug && !bug.found) {
+                bug.found = true;
+                localStorage.setItem('bt_qa_bugs', JSON.stringify(qaBugs));
+                renderQABugChecklist();
+                showToast(`🐞 Bug Discovered: [${bug.id}] ${bug.title}`, 'rose');
+            }
+        }
+
+        function toggleHint(bugId) {
+            document.getElementById(`hint-${bugId}`).classList.toggle('hidden');
+        }
+
+        function updateUserUI() {
+            document.getElementById('user-display-name').innerText = currentUser.name;
+        }
+
+        function exportBugReports() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(customReports, null, 2));
+            const anchor = document.createElement('a');
+            anchor.setAttribute("href", dataStr);
+            anchor.setAttribute("download", `evaluated_bug_reports_${Date.now()}.json`);
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+        }
+
+        function resetDatabase() {
+            localStorage.clear();
+            products = DEFAULT_PRODUCTS;
+            cart = [];
+            qaBugs = EMBEDDED_BUGS;
+            customReports = [];
+            currentUser = { name: 'QA Trainee', email: 'trainee@buggythreads.com', loggedIn: false };
+            renderProducts();
+            renderCart();
+            renderQABugChecklist();
+            renderSavedReports();
+            updateUserUI();
+            showToast('All state & LocalStorage cleared!', 'indigo');
+        }
+
+        function filterByCategory(cat) {
+            if (cat === 'all') renderProducts(products);
+            else renderProducts(products.filter(p => p.category === cat));
+        }
+
+        function removeFromCart(idx) {
+            cart.splice(idx, 1);
+            renderCart();
+        }
+
+        function showToast(message, color = 'indigo') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `bg-slate-950 text-white px-4 py-3 rounded-xl shadow-2xl border border-slate-800 text-xs font-semibold flex items-center space-x-2 transition-all duration-300 transform translate-y-2 opacity-0 pointer-events-auto`;
+            toast.innerHTML = `<span>${message}</span>`;
+            container.appendChild(toast);
+
+            setTimeout(() => toast.classList.remove('translate-y-2', 'opacity-0'), 10);
+            setTimeout(() => {
+                toast.classList.add('opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        window.onload = function() {
+            renderProducts();
+            renderCart();
+            renderQABugChecklist();
+            renderSavedReports();
+            updateUserUI();
+        };
+    
+        var FIXED = localStorage.getItem('bt_fixed') === '1';
+        // ===== v1.2 fixes (later declarations override earlier ones) =====
+        function esc(s) { return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+        function load(k, d) { try { const v = JSON.parse(localStorage.getItem(k)); return v === null || v === undefined ? d : v; } catch (e) { return d; } }
+        function syncBugs(saved) { const f = new Set((Array.isArray(saved) ? saved : []).filter(b => b && b.found).map(b => b.id)); return EMBEDDED_BUGS.map(b => ({ ...b, found: f.has(b.id) })); }
+        if (!Array.isArray(cart)) cart = [];
+        window.__orders = []; let view = { cat: 'all', q: '', max: null, sort: 'default' }, pending = 0;
+        function applyView() {
+            let r = [...products];
+            if (view.cat !== 'all') r = r.filter(p => p.category === view.cat);
+            if (view.q) r = r.filter(p => p.name.toLowerCase().includes(view.q.toLowerCase()));
+            if (view.max !== null) r = r.filter(p => FIXED ? p.price <= view.max : p.price >= view.max);                                   // BUG-FUN-04 kept (inverted)
+            if (view.sort === 'low-high') r.sort((a, b) => FIXED ? a.price - b.price : a.price.toString().localeCompare(b.price.toString())); // BUG-FUN-05 kept
+            else if (view.sort === 'high-low') r.sort((a, b) => b.price - a.price);
+            else if (view.sort === 'name') r.sort((a, b) => a.name.localeCompare(b.name));
+            renderProducts(r);
+        }
+        function filterByCategory(c) { view.cat = c; document.getElementById('category-select').value = c; applyView(); }
+        function performSearch() {
+            const q = document.getElementById('search-input').value;
+            if (q.includes('<script>') || q.includes('alert')) { triggerBugFound('BUG-SEC-01'); showToast('🚨 Reflected XSS Payload Executed in search sandbox!', 'rose'); }
+            view.q = q; applyView();
+        }
+        function updatePriceFilter(v) { document.getElementById('price-range-val').innerText = formatCurrency(v); view.max = +v; applyView(); triggerBugFound('BUG-FUN-04'); }
+        function handleSortChange(k) { view.sort = k; if (k === 'low-high') triggerBugFound('BUG-FUN-05'); applyView(); }
+        function handleCurrencyChange(c) { currentCurrency = c; triggerBugFound('BUG-LOC-01'); showToast(`Currency changed to ${c}. (Prices did not mathematically convert!)`, 'amber'); applyView(); renderCart(); }
+        function selectSize(size) {
+            selectedSize = size;
+            document.querySelectorAll('.size-btn').forEach(b => { const on = b.textContent === size; b.classList.toggle('bg-indigo-600', on); b.classList.toggle('text-white', on); b.classList.toggle('bg-slate-800', !on); b.classList.toggle('text-slate-300', !on); });
+            if (size === 'L' && !FIXED) { window.buggySizeOverride = 'XS'; triggerBugFound('BUG-FUN-03'); } else window.buggySizeOverride = null;
+        }
+        const _open = openProductModal;
+        openProductModal = function (id) {
+            window.buggySizeOverride = null; selectedSize = 'M'; _open(id); const p = activeModalProduct; if (!p) return;
+            const s = document.getElementById('modal-stock'); s.textContent = p.stock === 0 ? 'Out of stock' : `In stock: ${p.stock}`; s.className = 'text-xs font-semibold mt-1 ' + (p.stock === 0 ? 'text-rose-400' : 'text-emerald-400');
+        };
+        const _add = executeAddToCartFromModal;
+        executeAddToCartFromModal = function () {
+            const q = parseFloat(document.getElementById('modal-qty').value);
+            if (isNaN(q)) { showToast('Enter a quantity', 'amber'); return; }
+            if (FIXED && (q < 1 || q % 1 !== 0)) { showToast('Quantity must be a whole number, 1 or more', 'amber'); return; }
+            if (FIXED && activeModalProduct && activeModalProduct.stock === 0) { showToast('This item is out of stock', 'amber'); return; }
+            if (q < 0 || q % 1 !== 0) triggerBugFound('BUG-FUN-01');
+            _add();
+        };
+        function handleOrderSubmit(e) {                                                                         // simulated 800ms network call
+            e.preventDefault();
+            if (cart.length === 0) { showToast('Your bag is empty', 'amber'); return; }
+            const email = document.getElementById('cust-email').value, exp = document.getElementById('card-exp').value;
+            if (email.includes('@') && !email.includes('.')) triggerBugFound('BUG-VAL-02');
+            if (exp.includes('2000')) triggerBugFound('BUG-VAL-04');
+            if (FIXED && pending > 0) return;                                                                    // fixed: ignore repeated submits
+            if (++pending > 1) triggerBugFound('BUG-SEC-02');
+            const items = cart.map(i => ({ ...i }));
+            setTimeout(() => {
+                window.__orders.push({ id: window.__orders.length + 1, items });
+                items.forEach(i => { const p = products.find(x => x.id === i.id); if (p) p.stock = Math.max(0, p.stock - Math.max(0, i.qty)); });
+                showToast(`🎉 Order #${window.__orders.length} submitted`, 'emerald');
+                cart = []; window.appliedDiscount = 0; pending = 0; renderCart(); closeCheckoutModal();
+            }, 800);
+        }
+        function triggerConsoleErrorLink(e) {
+            e.preventDefault(); triggerBugFound('BUG-CON-02');
+            fetch('/api/v1/order-tracking/1001').then(r => { if (!r.ok) { console.error('API Error ' + r.status + ': /api/v1/order-tracking'); showToast('API Error ' + r.status, 'rose'); } })
+                .catch(() => { console.error('Network error: /api/v1/order-tracking unreachable'); showToast('Network error: could not reach the API', 'rose'); });
+        }
+        function resetDatabase() {
+            localStorage.clear(); products = DEFAULT_PRODUCTS.map(p => ({ ...p })); cart = []; qaBugs = syncBugs(null); customReports = [];
+            currentUser = { name: 'QA Trainee', email: 'trainee@buggythreads.com', loggedIn: false };
+            currentCurrency = 'USD'; document.getElementById('currency-select').value = 'USD'; window.appliedDiscount = 0; window.buggySizeOverride = null;
+            document.getElementById('coupon-msg').innerText = ''; document.getElementById('search-input').value = ''; document.getElementById('price-range').value = 300;
+            document.getElementById('price-range-val').innerText = formatCurrency(300); document.getElementById('sort-select').value = 'default';
+            view = { cat: 'all', q: '', max: null, sort: 'default' }; document.getElementById('category-select').value = 'all';
+            window.__orders = []; pending = 0; applyView(); renderCart(); renderQABugChecklist(); renderSavedReports(); updateUserUI(); showToast('All state & LocalStorage cleared!', 'indigo');
+        }
+        function tabs(ids, active, pre) { ids.forEach(i => { const b = document.getElementById(pre + i), on = i === active; if (!b) return; b.classList.toggle('border-indigo-500', on); b.classList.toggle('text-indigo-400', on); b.classList.toggle('border-transparent', !on); b.classList.toggle('text-slate-400', !on); }); }
+        const _sa = switchAuthTab; switchAuthTab = t => { _sa(t); tabs(['login', 'register'], t, 'auth-tab-'); };
+        const _sq = switchQATab; switchQATab = t => { _sq(t); tabs(['checklist', 'evaluator', 'logs'], t, 'tab-btn-'); };
+        function evaluateAndSaveBugReport(e) {
+            e.preventDefault();
+            const g = id => document.getElementById(id).value, title = g('eval-title').trim(), steps = g('eval-steps'), expected = g('eval-expected').trim(), actual = g('eval-actual').trim();
+            let score = 100; const fb = [], chk = (ok, good, bad, pen) => { if (ok) fb.push('✅ ' + good); else { score -= pen; fb.push('❌ ' + bad); } };
+            chk((steps.match(/^\s*\d+[.)]/gm) || []).length >= 2, 'Steps are a numbered list.', 'Steps should be a numbered list (at least 2 steps).', 20);
+            chk(title.length >= 15, 'Title is descriptive.', 'Title is too brief (15+ characters).', 15);
+            chk(expected.length >= 5, 'Expected result provided.', 'Expected result is missing or too short.', 15);
+            chk(actual.length >= 5, 'Actual result provided.', 'Actual result is missing or too short.', 15);
+            chk(expected.toLowerCase() !== actual.toLowerCase(), 'Expected and actual differ.', 'Expected and actual are identical.', 10);
+            const words = t => new Set(t.toLowerCase().match(/[a-z0-9]{4,}/g) || []);
+            const tw = words(title + ' ' + steps), matched = qaBugs.find(b => steps.toUpperCase().includes(b.id) || [...words(b.title)].filter(w => tw.has(w)).length >= 2);
+            if (matched) { fb.push(`🎯 Matched known bug: [${matched.id}] ${matched.title}`); triggerBugFound(matched.id); }
+            score = Math.max(0, score);
+            document.getElementById('eval-result-card').classList.remove('hidden');
+            const badge = document.getElementById('eval-score-badge'); badge.innerText = `Quality Score: ${score}/100`;
+            badge.className = `px-3 py-1 rounded-full text-xs font-black ${score >= 70 ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'}`;
+            document.getElementById('eval-feedback-text').innerHTML = fb.map(f => `<p>${esc(f)}</p>`).join('');
+            customReports.push({ title, severity: g('eval-severity'), category: g('eval-category'), steps, expected, actual, evaluation: { score, feedback: fb }, timestamp: new Date().toISOString() });
+            localStorage.setItem('bt_custom_reports', JSON.stringify(customReports)); renderSavedReports();
+        }
+        function executeSQLQuery() {
+            const box = document.getElementById('sql-results-container'), q = document.getElementById('sql-query-input').value.trim().replace(/;$/, '');
+            const err = m => box.innerHTML = `<p class="text-rose-400 font-mono text-xs">⚠️ ${esc(m)}</p>`;
+            if (!/^select/i.test(q)) return err('Only SELECT queries are supported.');
+            const m = q.match(/^select\s+(.+?)\s+from\s+products(?:\s+where\s+(.+?))?(?:\s+order\s+by\s+(\w+)(?:\s+(asc|desc))?)?(?:\s+limit\s+(\d+))?$/i);
+            if (!m) return err('Syntax: SELECT cols|*|COUNT(*) FROM products [WHERE a op v [AND ...]] [ORDER BY col [ASC|DESC]] [LIMIT n]');
+            const COLS = ['id', 'name', 'category', 'price', 'stock']; let rows = [...products];
+            if (m[2]) for (const c of m[2].split(/\s+and\s+/i)) {
+                const w = c.trim().match(/^(\w+)\s*(=|!=|<>|>=|<=|>|<)\s*('[^']*'|[\d.]+)$/);
+                if (!w || !COLS.includes(w[1].toLowerCase())) return err('Bad condition: ' + c);
+                const col = w[1].toLowerCase(), v = w[3].startsWith("'") ? w[3].slice(1, -1) : parseFloat(w[3]);
+                rows = rows.filter(r => ({ '=': r[col] == v, '!=': r[col] != v, '<>': r[col] != v, '>': r[col] > v, '<': r[col] < v, '>=': r[col] >= v, '<=': r[col] <= v }[w[2]]));
+            }
+            if (m[3]) { const c = m[3].toLowerCase(); if (!COLS.includes(c)) return err('Unknown column: ' + m[3]); const d = /desc/i.test(m[4] || '') ? -1 : 1; rows.sort((a, b) => (a[c] > b[c] ? 1 : a[c] < b[c] ? -1 : 0) * d); }
+            if (m[5]) rows = rows.slice(0, +m[5]);
+            let cols = m[1].trim() === '*' ? COLS : m[1].split(',').map(c => c.trim().toLowerCase());
+            if (/^count\(\*\)$/i.test(m[1].trim())) return box.innerHTML = `<table class="font-mono text-xs text-slate-200"><tr><th class="p-2 text-emerald-400">COUNT(*)</th></tr><tr><td class="p-2">${rows.length}</td></tr></table>`;
+            if (cols.some(c => !COLS.includes(c))) return err('Unknown column in: ' + m[1]);
+            box.innerHTML = `<table class="w-full text-left font-mono text-xs text-slate-200 border-collapse"><tr class="border-b border-slate-800 text-emerald-400">${cols.map(c => `<th class="p-2">${c.toUpperCase()}</th>`).join('')}</tr>` +
+                rows.map(r => `<tr class="border-b border-slate-800/60">${cols.map(c => `<td class="p-2">${c === 'price' ? '$' + r.price.toFixed(2) : esc(r[c])}</td>`).join('')}</tr>`).join('') + `</table><p class="text-[10px] text-slate-500 mt-2">${rows.length} row(s)</p>`;
+        }
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeProductModal(); closeCheckoutModal(); closeAuthModal(); closeProfileModal(); document.getElementById('warehouse-modal').classList.add('hidden'); document.getElementById('cart-drawer').classList.add('hidden'); } });
+        document.getElementById('search-input').addEventListener('keydown', e => { if (e.key === 'Enter') performSearch(); });
+        document.querySelectorAll('label').forEach(l => { const c = l.parentElement.querySelector('input,select,textarea'); if (c && c.id && !l.htmlFor) l.htmlFor = c.id; });
+        document.querySelectorAll('button').forEach(b => { if (!b.textContent.trim() && !b.getAttribute('aria-label')) b.setAttribute('aria-label', (b.getAttribute('onclick') || 'button').replace(/\(.*$/, '').replace(/([A-Z])/g, ' $1').toLowerCase().trim()); });
+        document.getElementById('cart-drawer').setAttribute('role', 'dialog');
+    
+        // ===== v1.3: Jira Board + API Test tabs in QA Control Center =====
+        const G = id => document.getElementById(id);
+        let jira = load('bt_jira', []); if (!Array.isArray(jira)) jira = [];
+        const J_COLS = [['todo', 'To Do'], ['prog', 'In Progress'], ['review', 'In Review'], ['done', 'Done']];
+        const jSave = () => localStorage.setItem('bt_jira', JSON.stringify(jira));
+        function jAdd(title, sev = 'Medium', src = 'manual') {
+            const n = Math.max(0, ...jira.map(t => +t.key.slice(3) - 100)) + 1;
+            jira.push({ key: 'BT-' + (100 + n), title, sev, src, status: 'todo' }); jSave();
+        }
+        let jSeen = load('bt_jira_seen', []); if (!Array.isArray(jSeen)) jSeen = [];
+        function jSync() { qaBugs.filter(b => b.found && !jSeen.includes(b.id) && !jira.some(t => t.src === b.id)).forEach(b => { jSeen.push(b.id); localStorage.setItem('bt_jira_seen', JSON.stringify(jSeen)); jAdd(`[${b.id}] ${b.title}`, ['Security', 'Authentication'].includes(b.category) ? 'High' : 'Medium', b.id); }); }
+        function jMove(k, d) { const t = jira.find(x => x.key === k), i = J_COLS.findIndex(c => c[0] === t.status), n = J_COLS[i + d]; if (n) { t.status = n[0]; jSave(); renderJira(); } }
+        function jDel(k) { jira = jira.filter(t => t.key !== k); jSave(); renderJira(); }
+        function jNew() { const i = G('jira-new-title'), t = i.value.trim(); if (t.length < 3) { showToast('Enter a ticket title', 'amber'); return; } jAdd(t, G('jira-new-sev').value); i.value = ''; renderJira(); }
+        function renderJira() {
+            jSync(); const SEV = { Low: 'bg-slate-700', Medium: 'bg-amber-700', High: 'bg-orange-700', Critical: 'bg-rose-700' };
+            G('jira-board').innerHTML = J_COLS.map(([id, name]) => {
+                const ts = jira.filter(t => t.status === id);
+                return `<div id="jira-col-${id}" class="bg-slate-900 border border-slate-800 rounded-xl p-2 space-y-2 min-h-[120px]"><div class="font-bold text-slate-300">${name} <span class="text-slate-500">(${ts.length})</span></div>` +
+                    ts.map(t => `<div class="jira-card bg-slate-950 border border-slate-800 rounded-lg p-2"><div class="flex justify-between"><span class="font-mono text-indigo-400">${t.key}</span><span class="text-[9px] px-1.5 rounded ${SEV[t.sev] || 'bg-slate-700'}">${esc(t.sev)}</span></div>` +
+                        `<div class="text-slate-200 my-1">${esc(t.title)}</div><div class="flex justify-between text-slate-400"><button aria-label="Move left" onclick="jMove('${t.key}',-1)">◀</button><button aria-label="Delete ticket" onclick="jDel('${t.key}')" class="text-rose-400">✕</button><button aria-label="Move right" onclick="jMove('${t.key}',1)">▶</button></div></div>`).join('') + `</div>`;
+            }).join('');
+        }
+        let apiToken = null;
+        async function apiCall(m, u, b, tok = apiToken) {
+            const h = { 'Content-Type': 'application/json' }; if (tok) h.Authorization = 'Bearer ' + tok; const t0 = performance.now();
+            const r = await fetch(u, { method: m, headers: h, body: b && m !== 'GET' ? (typeof b === 'string' ? b : JSON.stringify(b)) : undefined });
+            const txt = await r.text(); let j; try { j = JSON.parse(txt); } catch { j = txt; } return { status: r.status, ms: Math.round(performance.now() - t0), json: j };
+        }
+        async function apiSend() {
+            const out = G('api-resp'); out.textContent = '…';
+            try {
+                const r = await apiCall(G('api-method').value, G('api-url').value, G('api-body').value.trim() || undefined);
+                if (r.json && r.json.token) { apiToken = r.json.token; G('api-token').textContent = apiToken.slice(0, 12) + '…'; }
+                out.textContent = `${r.status} · ${r.ms} ms\n` + (typeof r.json === 'string' ? r.json : JSON.stringify(r.json, null, 2));
+            } catch (e) { out.textContent = 'Request failed: ' + e.message + '\nStart the mock API (npm start) and open http://localhost:3100'; }
+        }
+        const LOGIN = { email: 'qa@buggythreads.com', password: 'Passw0rd!' };
+        const tok = async () => (await apiCall('POST', '/api/v1/auth/login', LOGIN, null)).json.token;
+        const expect = (r, code) => r.status === code ? null : `expected ${code}, got ${r.status}`;
+        const API_CHECKS = [
+            ['AUTH-01', 'Valid login returns a token', async () => { const r = await apiCall('POST', '/api/v1/auth/login', LOGIN, null); return r.status === 200 && r.json.token ? null : 'status ' + r.status; }],
+            ['PRD-01', 'GET /products returns items and matching count', async () => { const r = await apiCall('GET', '/api/v1/products', null, null); return r.json.count === r.json.items.length && r.json.count > 0 ? null : 'count mismatch'; }],
+            ['API-03', 'maxPrice=50 returns only items ≤ 50', async () => { const r = await apiCall('GET', '/api/v1/products?maxPrice=50', null, null); return r.json.items.every(i => i.price <= 50) ? null : 'got prices ' + r.json.items.map(i => i.price).join(', '); }],
+            ['API-04', 'Unknown product returns 404', async () => expect(await apiCall('GET', '/api/v1/products/nope', null, null), 404)],
+            ['API-02', 'admin login with wrong password returns 401', async () => expect(await apiCall('POST', '/api/v1/auth/login', { email: 'admin@x.com', password: 'wrong' }, null), 401)],
+            ['API-01', 'Register with password "123" returns 400', async () => expect(await apiCall('POST', '/api/v1/auth/register', { email: 'n@x.com', password: '123' }, null), 400)],
+            ['API-05', 'Negative quantity returns 400', async () => expect(await apiCall('POST', '/api/v1/cart/items', { productId: 'prod-04', qty: -5 }, await tok()), 400)],
+            ['API-06', 'Coupon FREE100 applies only once', async () => { const t = await tok(); await apiCall('POST', '/api/v1/cart/items', { productId: 'prod-08', qty: 1 }, t); const c = { code: 'FREE100' }; await apiCall('POST', '/api/v1/cart/coupon', c, t); const r = await apiCall('POST', '/api/v1/cart/coupon', c, t); return r.json.discount === 100 ? null : 'discount is ' + r.json.discount; }],
+            ['API-07', 'Order with empty cart returns 400', async () => expect(await apiCall('POST', '/api/v1/orders', null, await tok()), 400)],
+            ['API-09', 'Order tracking does not return 500', async () => { const r = await apiCall('GET', '/api/v1/order-tracking/1001', null, null); return r.status < 500 ? null : 'got ' + r.status; }],
+        ];
+        function jFromApi(i) { const [id, name] = API_CHECKS[i], msg = G('api-results').children[i].dataset.msg; if (!jira.some(t => t.src === 'API:' + id)) jAdd(`[${id}] ${name} — ${msg}`, 'High', 'API:' + id); showToast('Ticket created in Jira board', 'indigo'); }
+        async function apiRunAll() {
+            const ul = G('api-results'); ul.innerHTML = '<li class="text-slate-500">Running…</li>';
+            try { await apiCall('POST', '/api/v1/test/reset', null, null); } catch (e) { ul.innerHTML = `<li class="text-rose-400">API unreachable: ${esc(e.message)}. Start it with npm start.</li>`; return; }
+            ul.innerHTML = '';
+            for (const [i, [id, name, fn]] of API_CHECKS.entries()) {
+                let msg; try { await apiCall('POST', '/api/v1/test/reset', null, null); msg = await fn(); } catch (e) { msg = 'error: ' + e.message; }
+                const li = document.createElement('li'); li.dataset.msg = msg || ''; li.className = 'p-2 rounded-lg border ' + (msg ? 'border-rose-800 bg-rose-950/30' : 'border-emerald-800 bg-emerald-950/30');
+                li.innerHTML = msg ? `❌ <b>${id}</b> ${esc(name)} <span class="text-rose-300">— ${esc(msg)}</span> <button onclick="jFromApi(${i})" class="ml-1 text-indigo-300 underline">→ Jira</button>` : `✅ <b>${id}</b> ${esc(name)}`;
+                ul.appendChild(li);
+            }
+            const bad = ul.querySelectorAll('li[data-msg]:not([data-msg=""])').length; G('api-summary').textContent = `${API_CHECKS.length - bad} passed, ${bad} failed`;
+        }
+        (function () {
+            const bar = G('tab-btn-checklist').parentElement; bar.classList.add('overflow-x-auto');
+            [['jira', '🗂 Jira Board'], ['api', '🔌 API Test']].forEach(([id, label]) => {
+                const b = document.createElement('button'); b.id = 'tab-btn-' + id; b.setAttribute('onclick', `switchQATab('${id}')`);
+                b.className = 'flex-1 py-3 px-2 text-center whitespace-nowrap border-b-2 border-transparent text-slate-400 hover:text-slate-200'; b.textContent = label; bar.appendChild(b);
+                const p = document.createElement('div'); p.id = 'qa-tab-' + id; p.className = 'flex-1 overflow-y-auto p-4 space-y-3 text-xs hidden'; G('qa-drawer').appendChild(p);
+            });
+            const inp = 'bg-slate-900 border border-slate-800 rounded-lg p-2 text-white';
+            G('qa-tab-jira').innerHTML = `<div class="flex gap-2"><input id="jira-new-title" aria-label="New ticket title" placeholder="New ticket title..." class="flex-1 ${inp}"><select id="jira-new-sev" aria-label="Severity" class="${inp}"><option>Low</option><option selected>Medium</option><option>High</option><option>Critical</option></select><button id="jira-add" onclick="jNew()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-3 rounded-lg">Add</button></div><p class="text-slate-500">Found bugs and failed API checks appear here automatically.</p><div id="jira-board" class="grid grid-cols-2 gap-3"></div>`;
+            G('qa-tab-api').innerHTML = `<div class="flex gap-2"><select id="api-method" aria-label="Method" class="${inp}"><option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option></select><input id="api-url" aria-label="URL" value="/api/v1/products" class="flex-1 font-mono ${inp}"><button id="api-send" onclick="apiSend()" class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold px-3 rounded-lg">Send</button></div>` +
+                `<div id="api-presets" class="flex flex-wrap gap-1.5"></div><textarea id="api-body" aria-label="JSON body" rows="3" placeholder='JSON body, e.g. {"productId":"prod-04","qty":1}' class="w-full font-mono ${inp}"></textarea>` +
+                `<div class="text-slate-400">Token: <span id="api-token" class="font-mono">none</span></div><pre id="api-resp" class="bg-slate-950 border border-slate-800 rounded-lg p-2 font-mono text-slate-300 max-h-48 overflow-auto whitespace-pre-wrap">Response appears here</pre>` +
+                `<div class="flex justify-between items-center pt-2 border-t border-slate-800"><b class="text-white">Automated checks <span id="api-summary" class="text-slate-400 font-normal"></span></b><button id="api-run-all" onclick="apiRunAll()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-lg">▶ Run all</button></div><ul id="api-results" class="space-y-1.5"></ul>`;
+            [['Health', 'GET', '/api/v1/health', ''], ['Products ≤ $50', 'GET', '/api/v1/products?maxPrice=50', ''], ['Login', 'POST', '/api/v1/auth/login', JSON.stringify(LOGIN)],
+             ['Add qty -5', 'POST', '/api/v1/cart/items', '{"productId":"prod-04","qty":-5}'], ['Coupon', 'POST', '/api/v1/cart/coupon', '{"code":"FREE100"}'], ['Tracking', 'GET', '/api/v1/order-tracking/1001', '']].forEach(([n, m, u, b]) => {
+                const x = document.createElement('button'); x.textContent = n; x.className = 'px-2 py-1 rounded-lg bg-slate-800 text-indigo-300 hover:bg-slate-700';
+                x.onclick = () => { G('api-method').value = m; G('api-url').value = u; G('api-body').value = b; }; G('api-presets').appendChild(x);
+            });
+            tabs(['checklist', 'evaluator', 'logs', 'jira', 'api'], 'checklist', 'tab-btn-');
+        })();
+        switchQATab = t => {
+            document.querySelectorAll('[id^="qa-tab-"]').forEach(x => x.classList.add('hidden')); G('qa-tab-' + t).classList.remove('hidden');
+            tabs(['checklist', 'evaluator', 'logs', 'jira', 'api'], t, 'tab-btn-'); if (t === 'jira') renderJira();
+        };
+        const _rd13 = resetDatabase; resetDatabase = function () { _rd13(); jira = []; jSeen = []; apiToken = null; G('api-token').textContent = 'none'; renderJira(); };
+    
+        // ===== v1.5: in-page mock API (shared mock-api.js) + failure simulator =====
+// Shared mock REST API: used by server.js (Node) and embedded in the single HTML file. No dependencies.
+(function (g) {
+  function createMockApi(seed) {
+    let S, fixed = false;
+    const rnd = n => { let t = (n + 0x6D2B79F5) >>> 0; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; // deterministic pseudo-random
+    const ALLOW = { '/api/v1/products': 'GET', '/api/v1/cart': 'GET', '/api/v1/orders': 'GET, POST', '/api/v1/auth/login': 'POST', '/api/v1/auth/register': 'POST' };
+    const reset = () => { S = { products: seed.map(p => ({ id: p.id, name: p.name, category: p.category, price: p.price, stock: p.stock })), users: { 'qa@buggythreads.com': 'Passw0rd!' }, tokens: {}, carts: {}, disc: {}, orders: [], next: 1001, fails: {}, flaky: {} }; };
+    reset();
+    function handle(m, u, b, auth, ct) {
+      b = b || {};
+      if (fixed && m === 'POST' && ct && !/json/i.test(ct) && Object.keys(b).length) return [415, { error: 'Content-Type must be application/json' }]; // API-17
+      const U = new URL(u, 'http://x'), p = U.pathname, q = U.searchParams, user = S.tokens[(auth || '').replace('Bearer ', '')];
+      const cart = () => (S.carts[user] = S.carts[user] || []);
+      const tot = () => { const sub = cart().reduce((s, i) => s + i.price * i.qty, 0), d = S.disc[user] || 0; return { subtotal: +sub.toFixed(2), discount: d, total: +(sub - d).toFixed(2) }; };
+      let r; const is = (M, re) => m === M && (r = p.match(re));
+      if (is('GET', /^\/api\/v1\/health$/)) return [200, { status: 'ok', fixed }];
+      if (is('POST', /^\/api\/v1\/test\/reset$/)) { reset(); return [200, { reset: true }]; }
+      if (is('POST', /^\/api\/v1\/test\/mode$/)) { fixed = !!b.fixed; return [200, { fixed }]; }
+      if (is('GET', /^\/api\/v1\/products$/)) {
+        let x = S.products;
+        if (q.get('category')) x = x.filter(i => i.category === q.get('category'));
+        if (q.get('maxPrice')) x = x.filter(i => fixed ? i.price <= +q.get('maxPrice') : i.price >= +q.get('maxPrice')); // API-03
+        if (q.get('q')) x = x.filter(i => i.name.toLowerCase().includes(q.get('q').toLowerCase()));
+        const items = q.get('q') && !fixed ? x.map(i => ({ ...i, price: String(i.price) })) : x;                           // API-12 contract break
+        const pg = q.get('page'), lm = q.get('limit');
+        if (pg !== null || lm !== null) {
+          const page = pg === null ? 1 : +pg, limit = lm === null ? 10 : +lm;
+          if (fixed && (!Number.isInteger(page) || page < 1 || !Number.isInteger(limit) || limit < 1)) return [400, { error: 'page and limit must be positive integers' }]; // API-14
+          const size = fixed ? Math.min(limit, 100) : limit, start = fixed ? (page - 1) * size : page * size;                    // API-13 off-by-one
+          const slice = items.slice(Math.max(0, start), Math.max(0, start) + size);
+          return [200, { total: items.length, page, limit: size, count: slice.length, items: slice }];
+        }
+        return [200, { count: items.length, items }];
+      }
+      if (is('GET', /^\/api\/v1\/products\/([\w-]+)$/)) { const x = S.products.find(i => i.id === r[1]); return x ? [200, x] : fixed ? [404, { error: 'product not found' }] : [200, {}]; } // API-04
+      if (is('POST', /^\/api\/v1\/auth\/register$/)) {
+        if (!b.email || !b.password) return [400, { error: 'email and password required' }];
+        if (fixed && String(b.password).length < 8) return [400, { error: 'password must have 8+ characters' }];          // API-01
+        if (S.users[b.email]) return [409, { error: 'exists' }];
+        S.users[b.email] = b.password; return [fixed ? 201 : 200, { email: b.email }];                                    // API-10
+      }
+      if (is('POST', /^\/api\/v1\/auth\/login$/)) {
+        const key = String(b.email || '');
+        if (fixed && (S.fails[key] || 0) >= 5) return [429, { error: 'Too many failed attempts' }, { 'Retry-After': '60' }];          // API-15
+        const ok = S.users[b.email] === b.password || (!fixed && String(b.email || '').includes('admin'));                                                    // API-02
+        if (!ok) { S.fails[key] = (S.fails[key] || 0) + 1; return [401, { error: 'Invalid credentials' }]; }
+        S.fails[key] = 0;
+        const t = 'tok_' + Math.random().toString(36).slice(2); S.tokens[t] = b.email; return [200, { token: t }];
+      }
+      if (is('GET', /^\/api\/v1\/cart$/)) return user ? [200, { items: cart(), ...tot() }] : [401, { error: 'auth required' }];
+      if (is('POST', /^\/api\/v1\/cart\/items$/)) {
+        if (!user) return [401, { error: 'auth required' }];
+        const pr = S.products.find(i => i.id === b.productId); if (!pr) return [404, { error: 'unknown product' }];
+        if (fixed) { if (!Number.isInteger(b.qty) || b.qty < 1) return [400, { error: 'qty must be an integer >= 1' }]; if (pr.stock === 0 || b.qty > pr.stock) return [409, { error: 'insufficient stock' }]; } // API-05
+        cart().push({ productId: pr.id, name: pr.name, price: pr.price, qty: b.qty }); return [201, { items: cart(), ...tot() }];
+      }
+      if (is('POST', /^\/api\/v1\/cart\/coupon$/)) {
+        if (!user) return [401, { error: 'auth required' }];
+        if (String(b.code).toUpperCase() !== 'FREE100') return [400, { error: 'Invalid coupon' }];
+        if (fixed && (S.disc[user] || 0) > 0) return [409, { error: 'coupon already applied' }];                          // API-06
+        S.disc[user] = (S.disc[user] || 0) + 100; return [200, tot()];
+      }
+      if (is('POST', /^\/api\/v1\/orders$/)) {
+        if (!user) return [401, { error: 'auth required' }];
+        const items = [...cart()];
+        if (fixed) { if (!items.length) return [400, { error: 'cart is empty' }]; items.forEach(i => { const pr = S.products.find(x => x.id === i.productId); if (pr) pr.stock -= i.qty; }); } // API-07
+        const o = { id: S.next++, owner: user, items, ...tot() }; S.orders.push(o); S.carts[user] = []; S.disc[user] = 0; return [201, o];
+      }
+      if (is('GET', /^\/api\/v1\/orders$/)) {
+        if (!fixed) return [200, { orders: S.orders }];                                                                    // API-11
+        return user ? [200, { orders: S.orders.filter(o => o.owner === user) }] : [401, { error: 'auth required' }];
+      }
+      if (is('GET', /^\/api\/v1\/orders\/(\d+)$/)) {
+        const o = S.orders.find(i => i.id === +r[1]); if (!o) return [404, { error: 'not found' }];
+        if (fixed && o.owner !== user) return user ? [403, { error: 'forbidden' }] : [401, { error: 'auth required' }];    // API-08
+        return [200, o];
+      }
+      if (is('GET', /^\/api\/v1\/order-tracking\/(\d+)$/)) {                                                               // API-09
+        if (!fixed) return [500, { error: 'Internal Server Error' }];
+        const o = S.orders.find(i => i.id === +r[1]); return o ? [200, { id: o.id, status: 'shipped' }] : [404, { error: 'order not found' }];
+      }
+      if (is('GET', /^\/api\/v1\/flaky\/random$/)) {          // flaky lab: deterministic "random" failures, pass n= to make a test repeatable
+        const seed = +(q.get('seed') || 1), pr = +(q.get('p') || 0.3), n = q.get('n') !== null ? +q.get('n') : (S.flaky['r' + seed] = (S.flaky['r' + seed] || 0) + 1);
+        return rnd(seed * 1000 + n) < pr ? [503, { error: 'temporarily unavailable', attempt: n }, { 'Retry-After': '1' }] : [200, { ok: true, attempt: n }];
+      }
+      if (is('GET', /^\/api\/v1\/flaky\/eventual$/)) {       // flaky lab: eventual consistency, 202 until the `after`-th poll
+        const id = q.get('id') || 'job', after = +(q.get('after') || 3), n = q.get('n') !== null ? +q.get('n') : (S.flaky['e' + id] = (S.flaky['e' + id] || 0) + 1);
+        return n <= after ? [202, { status: 'processing', poll: n }] : [200, { status: 'done', poll: n }];
+      }
+      if (fixed && ALLOW[p]) return [405, { error: 'method not allowed' }, { Allow: ALLOW[p] }];                                   // API-16
+      return [404, { error: 'no such route' }];
+    }
+    return { handle, reset, setFixed: v => { fixed = !!v; }, isFixed: () => fixed };
+  }
+  g.createMockApi = createMockApi; if (typeof module !== 'undefined') module.exports = createMockApi;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+        const Mock = createMockApi(DEFAULT_PRODUCTS);
+        const Chaos = { mode: 'off' };
+        const _realFetch = window.fetch ? window.fetch.bind(window) : null;
+        function mockResponse(u, o) {
+            let b = {}; try { b = o.body ? JSON.parse(o.body) : {}; } catch (e) { return Promise.resolve(new Response(JSON.stringify({ error: 'Invalid JSON' }), { status: 400 })); }
+            const [st, body, h] = Mock.handle((o.method || 'GET').toUpperCase(), u, b, (o.headers || {}).Authorization, (o.headers || {})['Content-Type']);
+            return new Promise(res => setTimeout(() => res(new Response(JSON.stringify(body), { status: st, headers: { 'Content-Type': 'application/json', ...(h || {}) } })), 30 + Math.random() * 50));
+        }
+        window.fetch = function (u, o = {}) {
+            const api = String(u).startsWith('/api/');
+            if (api && Chaos.mode === 'offline') return Promise.reject(new TypeError('Failed to fetch'));
+            if (api && Chaos.mode === '500') return Promise.resolve(new Response(JSON.stringify({ error: 'Injected failure' }), { status: 500 }));
+            if (api && Chaos.mode === 'badjson') return Promise.resolve(new Response('<html>Bad gateway</html>', { status: 200 }));
+            const go = () => (api && location.protocol === 'file:') ? mockResponse(u, o) : _realFetch(u, o);
+            return api && Chaos.mode === 'slow' ? new Promise(r => setTimeout(() => r(go()), 3000)) : go();
+        };
+        const PROJECT_FILES = JSON.parse(document.getElementById('bt-project-files').textContent);
+        function dlFile(n) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([PROJECT_FILES[n]], { type: 'text/plain' })); a.download = n.split('/').pop(); document.body.appendChild(a); a.click(); a.remove(); }
+        function viewFile(n) { G('files-preview').textContent = PROJECT_FILES[n]; }
+        (function () {
+            const bar = G('tab-btn-checklist').parentElement, b = document.createElement('button');
+            b.id = 'tab-btn-files'; b.setAttribute('onclick', "switchQATab('files')"); b.className = 'flex-1 py-3 px-2 text-center whitespace-nowrap border-b-2 border-transparent text-slate-400 hover:text-slate-200'; b.textContent = '📦 Project Files'; bar.appendChild(b);
+            const p = document.createElement('div'); p.id = 'qa-tab-files'; p.className = 'flex-1 overflow-y-auto p-4 space-y-3 text-xs hidden'; G('qa-drawer').appendChild(p);
+            p.innerHTML = `<p class="text-slate-400">Playwright project embedded in this page. This page itself is <code>public/index.html</code> (Ctrl+S). In file:// mode the API runs inside the page.</p><ul id="files-list" class="space-y-1.5"></ul><pre id="files-preview" class="bg-slate-950 border border-slate-800 rounded-lg p-2 font-mono text-slate-300 max-h-72 overflow-auto whitespace-pre-wrap">Click View to preview a file</pre>`;
+            Object.keys(PROJECT_FILES).forEach(n => { const li = document.createElement('li'); li.className = 'flex justify-between items-center bg-slate-900 border border-slate-800 rounded-lg p-2'; li.innerHTML = `<span class="font-mono text-slate-200">${esc(n)} <span class="text-slate-500">${(PROJECT_FILES[n].length / 1024).toFixed(1)} KB</span></span><span class="space-x-2"><button class="text-indigo-300 underline" onclick="viewFile('${n}')">View</button><button class="text-emerald-300 underline" onclick="dlFile('${n}')">Download</button></span>`; G('files-list').appendChild(li); });
+        })();
+        switchQATab = t => {
+            document.querySelectorAll('[id^="qa-tab-"]').forEach(x => x.classList.add('hidden')); G('qa-tab-' + t).classList.remove('hidden');
+            tabs(['checklist', 'evaluator', 'logs', 'jira', 'api', 'files'], t, 'tab-btn-'); if (t === 'jira') renderJira();
+        };
+    
+        // ===== v1.5: fixed build, click-to-log visual bugs, failure simulator, contract checks, REST presets, Postman export =====
+        const SCHEMAS = {
+  "product": { "type": "object", "required": ["id", "name", "category", "price", "stock"],
+    "properties": { "id": { "type": "string" }, "name": { "type": "string" }, "category": { "type": "string" }, "price": { "type": "number", "minimum": 0 }, "stock": { "type": "integer", "minimum": 0 } } },
+  "token": { "type": "object", "required": ["token"], "properties": { "token": { "type": "string" } } },
+  "order": { "type": "object", "required": ["id", "owner", "items", "subtotal", "total"],
+    "properties": { "id": { "type": "integer" }, "owner": { "type": "string" }, "items": { "type": "array" }, "subtotal": { "type": "number" }, "total": { "type": "number" } } },
+  "error": { "type": "object", "required": ["error"], "properties": { "error": { "type": "string" } } }
+};
+        const VISUAL_CLICK = ['BUG-VIS-01', 'BUG-VIS-02', 'BUG-VIS-03', 'BUG-LOC-02'];
+        document.addEventListener('click', e => { const el = e.target.closest && e.target.closest('[data-bug-id]'); if (el && !FIXED && VISUAL_CLICK.includes(el.dataset.bugId)) triggerBugFound(el.dataset.bugId); }, true);
+        function applyFixedUI() {
+            document.body.classList.toggle('fixed-build', FIXED);
+            const n = document.querySelector('[data-bug-id="BUG-LOC-02"]');
+            if (n) { if (!n.dataset.orig) n.dataset.orig = n.innerHTML; n.innerHTML = FIXED ? n.dataset.orig.replace(/[А-Яа-яЁё][^<]*/, 'Sale') : n.dataset.orig; }
+            const t = G('fixed-toggle'); if (t) t.checked = FIXED;
+        }
+        const syncServerMode = () => fetch('/api/v1/test/mode', { method: 'POST', body: JSON.stringify({ fixed: FIXED }) }).catch(() => {});
+        function setFixed(v) {
+            FIXED = !!v; localStorage.setItem('bt_fixed', FIXED ? '1' : '0'); applyFixedUI(); syncServerMode(); applyView();
+            showToast(FIXED ? '🔧 Fixed build: 11 UI + 17 API bugs disabled' : '🐞 Bug build restored', 'indigo');
+        }
+        const _applyCoupon = applyCoupon;
+        applyCoupon = function () { if (FIXED && window.appliedDiscount > 0) { G('coupon-msg').innerText = 'A coupon is already applied'; return; } _applyCoupon(); };
+        const _rd15 = resetDatabase; resetDatabase = function () { _rd15(); FIXED = false; applyFixedUI(); syncServerMode(); };
+        (function () {
+            const bar = document.createElement('label'); bar.className = 'flex items-center gap-2 px-4 py-2 text-xs text-slate-300 border-b border-slate-800 bg-slate-900/60 cursor-pointer';
+            bar.innerHTML = '<input id="fixed-toggle" type="checkbox"> 🔧 Fixed build <span class="text-slate-500">(retest mode: 11 UI + 17 API bugs disabled)</span>';
+            const d = G('qa-drawer'); d.insertBefore(bar, d.firstChild); G('fixed-toggle').addEventListener('change', e => setFixed(e.target.checked));
+            applyFixedUI(); if (FIXED) syncServerMode();
+            G('qa-tab-api').insertAdjacentHTML('afterbegin', '<div class="flex items-center gap-2"><label for="chaos-mode" class="text-slate-400">Failure simulator</label><select id="chaos-mode" class="bg-slate-900 border border-slate-800 rounded-lg p-1.5 text-white"><option value="off">Off</option><option value="500">HTTP 500</option><option value="offline">Network down</option><option value="slow">Slow (3 s)</option><option value="badjson">Non-JSON body</option></select><span class="text-slate-500">affects every /api call</span></div>');
+            G('chaos-mode').addEventListener('change', e => { Chaos.mode = e.target.value; showToast('Failure simulator: ' + e.target.options[e.target.selectedIndex].text, 'amber'); });
+        })();
+        // --- contract checks (schemas shared with tests/schemas.json) ---
+        function validateSchema(s, d, path = '') {
+            const t = Array.isArray(d) ? 'array' : d === null ? 'null' : typeof d, errs = [], at = path || '/';
+            if (s.type && !(s.type === 'integer' ? Number.isInteger(d) : s.type === t)) return [`${at} should be ${s.type}, got ${t}`];
+            if (s.minimum !== undefined && d < s.minimum) errs.push(`${at} is below ${s.minimum}`);
+            (s.required || []).forEach(k => { if (!(k in d)) errs.push(`${path}/${k} is required`); });
+            Object.entries(s.properties || {}).forEach(([k, sub]) => { if (d && k in d) errs.push(...validateSchema(sub, d[k], path + '/' + k)); });
+            return errs;
+        }
+        const firstErr = list => list.length ? list[0] : null, prodList = async q => (await apiCall('GET', '/api/v1/products' + q, null, null)).json.items;
+        API_CHECKS[API_CHECKS.findIndex(c => c[0] === 'API-06')][2] = async () => {
+            const t = await tok(); await apiCall('POST', '/api/v1/cart/items', { productId: 'prod-08', qty: 1 }, t);
+            for (let i = 0; i < 2; i++) await apiCall('POST', '/api/v1/cart/coupon', { code: 'FREE100' }, t);
+            const c = (await apiCall('GET', '/api/v1/cart', null, t)).json; return c.discount === 100 ? null : 'discount is ' + c.discount;
+        };
+        API_CHECKS.push(
+            ['CT-01', 'Product list items match the product schema', async () => firstErr((await prodList('')).flatMap(i => validateSchema(SCHEMAS.product, i)))],
+            ['CT-02', 'Search results keep price numeric (API-12)', async () => firstErr((await prodList('?q=a')).flatMap(i => validateSchema(SCHEMAS.product, i)))],
+            ['CT-03', 'Login response matches the token schema', async () => firstErr(validateSchema(SCHEMAS.token, (await apiCall('POST', '/api/v1/auth/login', LOGIN, null)).json))],
+            ['CT-04', 'Order response matches the order schema', async () => {
+                const t = await tok(), p = (await prodList('')).find(x => x.stock > 5);
+                await apiCall('POST', '/api/v1/cart/items', { productId: p.id, qty: 1 }, t);
+                return firstErr(validateSchema(SCHEMAS.order, (await apiCall('POST', '/api/v1/orders', null, t)).json));
+            }]);
+        // --- REST practice: full endpoint list as presets + Postman export ---
+        const ENDPOINTS = [
+            ['Health', 'GET', '/api/v1/health', ''], ['List products', 'GET', '/api/v1/products', ''], ['Category filter', 'GET', '/api/v1/products?category=electronics', ''],
+            ['Max price 50', 'GET', '/api/v1/products?maxPrice=50', ''], ['Search', 'GET', '/api/v1/products?q=watch', ''], ['Product by id', 'GET', '/api/v1/products/prod-04', ''],
+            ['Unknown product', 'GET', '/api/v1/products/nope', ''], ['Register', 'POST', '/api/v1/auth/register', '{"email":"new@x.com","password":"abc"}'],
+            ['Login', 'POST', '/api/v1/auth/login', JSON.stringify(LOGIN)], ['Admin login wrong pw', 'POST', '/api/v1/auth/login', '{"email":"admin@x.com","password":"wrong"}'],
+            ['Get cart', 'GET', '/api/v1/cart', ''], ['Add qty -5', 'POST', '/api/v1/cart/items', '{"productId":"prod-04","qty":-5}'], ['Coupon', 'POST', '/api/v1/cart/coupon', '{"code":"FREE100"}'],
+            ['Create order', 'POST', '/api/v1/orders', ''], ['List orders', 'GET', '/api/v1/orders', ''], ['Order by id', 'GET', '/api/v1/orders/1001', ''], ['Order tracking', 'GET', '/api/v1/order-tracking/1001', '']];
+        function postmanCollection() {
+            const test = n => n === 'Login' ? ["pm.test('200', () => pm.response.to.have.status(200));", "pm.collectionVariables.set('token', pm.response.json().token);"] : ["pm.test('responds', () => pm.expect(pm.response.code).to.be.below(600));"];
+            return { info: { name: 'BuggyThreads API', schema: 'https://schema.getpostman.com/json/collection/v2.1.0/collection.json' }, variable: [{ key: 'baseUrl', value: 'http://localhost:3100' }, { key: 'token', value: '' }],
+                item: ENDPOINTS.map(([name, method, path, body]) => ({ name, event: [{ listen: 'test', script: { type: 'text/javascript', exec: test(name) } }],
+                    request: { method, header: [{ key: 'Content-Type', value: 'application/json' }, { key: 'Authorization', value: 'Bearer {{token}}' }], ...(body ? { body: { mode: 'raw', raw: body } } : {}),
+                        url: { raw: '{{baseUrl}}' + path, host: ['{{baseUrl}}'], path: path.split('?')[0].split('/').filter(Boolean) } } })) };
+        }
+        function dlText(name, text) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' })); a.download = name; document.body.appendChild(a); a.click(); a.remove(); }
+        G('api-presets').innerHTML = '';
+        ENDPOINTS.forEach(([n, m, u, b]) => { const x = document.createElement('button'); x.textContent = n; x.className = 'px-2 py-1 rounded-lg bg-slate-800 text-indigo-300 hover:bg-slate-700'; x.onclick = () => { G('api-method').value = m; G('api-url').value = u; G('api-body').value = b; }; G('api-presets').appendChild(x); });
+        G('api-presets').insertAdjacentHTML('afterend', '<button id="api-postman" onclick="dlText(\'BuggyThreads.postman_collection.json\', JSON.stringify(postmanCollection(), null, 2))" class="text-emerald-300 underline">⬇ Postman collection</button>');
+    
+        // ===== v1.6: pagination / rate-limit / HTTP checks, flaky lab =====
+        API_CHECKS.push(
+            ['PG-01', 'Page 1 returns the first items (API-13)', async () => { const all = await prodList(''), pg = (await apiCall('GET', '/api/v1/products?page=1&limit=5', null, null)).json.items || []; return JSON.stringify(pg.map(x => x.id)) === JSON.stringify(all.slice(0, 5).map(x => x.id)) ? null : 'page 1 does not start at the first item'; }],
+            ['RL-01', 'Sixth failed login gets 429 (API-15)', async () => { let last; for (let i = 0; i < 6; i++) last = await apiCall('POST', '/api/v1/auth/login', { email: 'qa@buggythreads.com', password: 'bad' + i }, null); return expect(last, 429); }],
+            ['HT-01', 'DELETE /products returns 405 (API-16)', async () => expect(await apiCall('DELETE', '/api/v1/products', null, null), 405)]);
+        ENDPOINTS.push(['Products page 1', 'GET', '/api/v1/products?page=1&limit=5', ''], ['Delete products (405)', 'DELETE', '/api/v1/products', ''], ['Flaky random', 'GET', '/api/v1/flaky/random?seed=1&p=0.3', ''], ['Flaky eventual', 'GET', '/api/v1/flaky/eventual?id=job&after=3', '']);
+        G('api-presets').innerHTML = '';
+        ENDPOINTS.forEach(([n, m, u, b]) => { const x = document.createElement('button'); x.textContent = n; x.className = 'px-2 py-1 rounded-lg bg-slate-800 text-indigo-300 hover:bg-slate-700'; x.onclick = () => { G('api-method').value = m; G('api-url').value = u; G('api-body').value = b; }; G('api-presets').appendChild(x); });
+        async function flakyRandom() {
+            const out = G('flaky-random-out'), seed = +G('flaky-seed').value || 1, pr = +G('flaky-p').value || 0.3, N = 20; let first = 0, retried = 0, failed = 0, cells = ''; out.textContent = 'Running…';
+            try {
+                for (let i = 0; i < N; i++) {
+                    let ok = -1;
+                    for (let k = 0; k < 4; k++) { const r = await apiCall('GET', `/api/v1/flaky/random?seed=${seed}&p=${pr}&n=${i * 4 + k + 1}`, null, null); if (r.status === 200) { ok = k; break; } }
+                    if (ok === 0) { first++; cells += '🟩'; } else if (ok > 0) { retried++; cells += '🟨'; } else { failed++; cells += '🟥'; }
+                }
+            } catch (e) { out.textContent = 'API unreachable: ' + e.message; return; }
+            const verdict = first === N ? 'STABLE' : retried ? `FLAKY: ${retried} test(s) pass only thanks to retries` : 'BROKEN: failing even with retries';
+            out.innerHTML = `<div class="text-lg tracking-wider">${cells}</div><div>🟩 first try: ${first} · 🟨 passed on retry: ${retried} · 🟥 failed: ${failed}</div><div class="${first === N ? 'text-emerald-400' : 'text-amber-300'} font-bold">${verdict}</div><div class="text-slate-500">Retries keep the build green but hide the problem: watch the 🟨 count.</div>`;
+        }
+        async function flakyEventual() {
+            const out = G('flaky-eventual-out'), id = 'lab' + Date.now(), lines = []; out.textContent = 'Running…';
+            try {
+                const naive = await apiCall('GET', `/api/v1/flaky/eventual?id=${id}&after=3&n=1`, null, null);
+                lines.push(`❌ naive check: expected 200 right away, got ${naive.status} (${naive.json.status})`);
+                let n = 0, r; do { r = await apiCall('GET', `/api/v1/flaky/eventual?id=${id}&after=3&n=${++n}`, null, null); if (r.status !== 200) await new Promise(x => setTimeout(x, 100)); } while (r.status !== 200 && n < 10);
+                lines.push(r.status === 200 ? `✅ polling check: passed after ${n} polls, no fixed sleep` : '❌ polling gave up');
+            } catch (e) { out.textContent = 'API unreachable: ' + e.message; return; }
+            out.innerHTML = lines.map(x => `<div>${x}</div>`).join('') + '<div class="text-slate-500">Poll with a timeout (expect.poll) instead of sleep(): fast when ready, patient when slow.</div>';
+        }
+        (function () {
+            const bar = G('tab-btn-checklist').parentElement, b = document.createElement('button');
+            b.id = 'tab-btn-flaky'; b.setAttribute('onclick', "switchQATab('flaky')"); b.className = 'flex-1 py-3 px-2 text-center whitespace-nowrap border-b-2 border-transparent text-slate-400 hover:text-slate-200'; b.textContent = '🎲 Flaky Lab'; bar.appendChild(b);
+            const p = document.createElement('div'); p.id = 'qa-tab-flaky'; p.className = 'flex-1 overflow-y-auto p-4 space-y-3 text-xs hidden'; G('qa-drawer').appendChild(p);
+            const inp = 'w-16 bg-slate-900 border border-slate-800 rounded-lg p-1.5 text-white', box = 'bg-slate-900 border border-slate-800 rounded-xl p-3 space-y-2', btn = 'bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 py-1.5 rounded-lg';
+            p.innerHTML = `<p class="text-slate-400">A flaky test passes and fails on the same code. Run the scenarios, then read <code>docs/FLAKY_TESTS.md</code> in Project Files.</p>` +
+                `<div class="${box}"><b class="text-white">1. Random 503: 20 tests, up to 3 retries each</b><div class="flex flex-wrap gap-2 items-center"><label for="flaky-seed" class="text-slate-400">seed</label><input id="flaky-seed" value="1" class="${inp}"><label for="flaky-p" class="text-slate-400">failure rate</label><input id="flaky-p" value="0.3" class="${inp}"><button id="flaky-run-random" onclick="flakyRandom()" class="${btn}">▶ Run</button></div><div id="flaky-random-out" class="font-mono text-slate-300"></div></div>` +
+                `<div class="${box}"><b class="text-white">2. Eventual consistency: naive check vs polling</b><div><button id="flaky-run-eventual" onclick="flakyEventual()" class="${btn}">▶ Run</button></div><div id="flaky-eventual-out" class="font-mono text-slate-300 space-y-1"></div></div>`;
+        })();
+        switchQATab = t => {
+            document.querySelectorAll('[id^="qa-tab-"]').forEach(x => x.classList.add('hidden')); G('qa-tab-' + t).classList.remove('hidden');
+            tabs(['checklist', 'evaluator', 'logs', 'jira', 'api', 'files', 'flaky'], t, 'tab-btn-'); if (t === 'jira') renderJira();
+        };
+    </script>
+</body>
+</html>
+    
